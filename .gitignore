@@ -1,18 +1,41 @@
-address_resolver/src/src/
-target/*
-.settings/*
-.classpath
-.project
-.idea
-*.iml
-/target
-**/node_modules
-**/typings
-generated/
-**DS_Store
-# Easier branch switching
-springboot-petclinic-client/
-springboot-petclinic-server/
-**/.venv*
-**/__pycache__*
-**__pycache__**
+```
+# Compiled and build artifacts
+*.class
+*.o
+*.obj
+*.out
+build/
+target/
+
+# Dependencies
+.mypy_cache/
+.pytest_cache/
+.gradle/
+node_modules/
+venv/
+.venv/
+__pycache__/
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+
+# Coverage reports
+coverage/
+htmlcov/
+.coverage
+
+# System files
+.DS_Store
+Thumbs.db
+```
