@@ -1,0 +1,9 @@
+{
+  "name": "petclinic-frontend-loadgen",
+  "version": "1.0.0",
+  "description": "Load generator for petclinic frontend app",
+  "dependencies": {
+    "chromeless": "^1.5.2",
+    "pm2": "^3.0.3"
+  }
+}

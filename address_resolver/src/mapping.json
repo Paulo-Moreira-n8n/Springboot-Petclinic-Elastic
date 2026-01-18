@@ -1,0 +1,19 @@
+{
+  "aliases": {},
+  "mappings": {
+    "doc": {
+      "properties": {
+        "zip_code": {
+          "type": "keyword"
+        }
+      }
+    }
+  },
+  "settings": {
+    "index": {
+      "number_of_shards": "2",
+      "number_of_replicas": "1",
+      "refresh_interval": "-1"
+    }
+  }
+}
