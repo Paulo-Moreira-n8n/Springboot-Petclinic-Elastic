@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "jsx": "react",
+    "module": "commonjs",
+    "noImplicitAny": false,
+    "preserveConstEnums": true,
+    "removeComments": true,
+    "target": "ES6",
+    "allowJs": true,
+    "outDir": "dist",
+    "sourceMap": true,
+    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "node"
+  },
+  "exclude": [
+    "node_modules",
+    "typings/browser.d.ts",
+    "typings/browser",
+    "tests"
+  ]
+}
