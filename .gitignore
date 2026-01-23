@@ -1,18 +1,25 @@
-address_resolver/src/src/
-target/*
-.settings/*
-.classpath
-.project
-.idea
-*.iml
-/target
-**/node_modules
-**/typings
-generated/
-**DS_Store
-# Easier branch switching
-springboot-petclinic-client/
-springboot-petclinic-server/
-**/.venv*
-**/__pycache__*
-**__pycache__**
+```
+# Compiled and build artifacts
+*.class
+target/
+
+# Dependencies
+.m2/
+.gradle/
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+
+# Backup files
+*.backup
+```

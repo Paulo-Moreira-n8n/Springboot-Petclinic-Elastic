@@ -1,8 +1,8 @@
 package org.springframework.samples.petclinic.validation;
 
-import javax.validation.Constraint;
+import jakarta.validation.Constraint;
 import java.lang.annotation.Documented;
-import javax.validation.Payload;
+import jakarta.validation.Payload;
 import java.lang.annotation.Target;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

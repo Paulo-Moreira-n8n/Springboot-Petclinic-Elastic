@@ -18,8 +18,8 @@ package org.springframework.samples.petclinic.rest;
 
 import java.util.Collection;
 
-import javax.transaction.Transactional;
-import javax.validation.Valid;
+import org.springframework.transaction.annotation.Transactional;
+import jakarta.validation.Valid;
 
 import co.elastic.apm.api.CaptureSpan;
 import org.springframework.beans.factory.annotation.Autowired;
