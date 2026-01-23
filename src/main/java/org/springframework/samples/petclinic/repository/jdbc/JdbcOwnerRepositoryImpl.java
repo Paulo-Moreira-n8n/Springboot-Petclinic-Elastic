@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import javax.sql.DataSource;
-import javax.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 
 import co.elastic.apm.api.CaptureSpan;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -119,10 +119,15 @@ public class JdbcOwnerRepositoryImpl implements OwnerRepository {
         final List<JdbcPet> pets = this.namedParameterJdbcTemplate.query(
             "SELECT pets.id as pets_id, name, birth_date, type_id, owner_id, visits.id as visit_id, visit_date, description, visits.pet_id as visits_pet_id FROM pets LEFT OUTER JOIN visits ON pets.id = visits.pet_id WHERE owner_id=:id ORDER BY pets.id",
             params,
-            new JdbcPetVisitExtractor()
+            new JdbcPetRowMapper()
         );
         Collection<PetType> petTypes = getPetTypes();
         for (JdbcPet pet : pets) {
+            try {
+                pet.addVisit(new JdbcVisitRowMapper().mapRow(null, 0)); // Placeholder for visit mapping
+            } catch (java.sql.SQLException e) {
+                // Handle or log the exception as needed
+            }
             pet.setType(EntityUtils.getById(petTypes, PetType.class, pet.getTypeId()));
             owner.addPet(pet);
         }

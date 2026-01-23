@@ -17,14 +17,13 @@ package org.springframework.samples.petclinic.repository.jpa;
 
 import java.util.Collection;
 
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
-import javax.persistence.Query;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.Query;
 
 import co.elastic.apm.api.CaptureSpan;
 import org.springframework.context.annotation.Profile;
 import org.springframework.dao.DataAccessException;
-import org.springframework.orm.hibernate3.support.OpenSessionInViewFilter;
 import org.springframework.samples.petclinic.model.Owner;
 import org.springframework.samples.petclinic.repository.OwnerRepository;
 import org.springframework.stereotype.Repository;
@@ -51,7 +50,6 @@ public class JpaOwnerRepositoryImpl implements OwnerRepository {
      * we do not need Visits at all and we only need one property from the Pet objects (the 'name' property).
      * There are some ways to improve it such as:
      * - creating a Ligtweight class (example here: https://community.jboss.org/wiki/LightweightClass)
-     * - Turning on lazy-loading and using {@link OpenSessionInViewFilter}
      */
     @SuppressWarnings("unchecked")
     public Collection<Owner> findByLastName(String lastName) {
