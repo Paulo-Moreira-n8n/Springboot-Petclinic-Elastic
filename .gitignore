@@ -1,25 +1,24 @@
 ```
 # Compiled and build artifacts
 *.class
-target/
+*.o
+*.obj
+*.out
 
 # Dependencies
-.m2/
+target/
 .gradle/
 
 # Logs and temp files
 *.log
 *.tmp
 
-# Environment
-.env
-.env.local
-*.env.*
-
 # Editors
 .vscode/
 .idea/
 
-# Backup files
-*.backup
+# Environment
+.env
+.env.local
+*.env.*
 ```
