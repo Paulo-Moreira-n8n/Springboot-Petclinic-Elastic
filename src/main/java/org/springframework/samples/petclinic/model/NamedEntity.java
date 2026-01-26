@@ -32,7 +32,7 @@ import jakarta.validation.constraints.NotBlank;
 public class NamedEntity extends BaseEntity {
 
     @Column(name = "name")
-    @NotBlank
+    @NotBlank(message = "may not be empty")
     private String name;
 
     public String getName() {

@@ -57,7 +57,7 @@ public class Visit extends BaseEntity {
     /**
      * Holds value of property description.
      */
-    @NotBlank
+    @NotBlank(message = "may not be empty")
     @Column(name = "description")
     private String description;
 

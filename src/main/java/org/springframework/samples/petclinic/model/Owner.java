@@ -54,24 +54,24 @@ import org.springframework.samples.petclinic.validation.ZipCodeConstraint;
 @JsonDeserialize(using = JacksonCustomOwnerDeserializer.class)
 public class Owner extends Person {
     @Column(name = "address")
-    @NotBlank
+    @NotBlank(message = "may not be empty")
     private String address;
 
     @ZipCodeConstraint
     @Column(name = "zip_code")
-    @NotBlank
+    @NotBlank(message = "may not be empty")
     private String zipCode;
 
     @Column(name = "state")
-    @NotBlank
+    @NotBlank(message = "may not be empty")
     private String state;
 
     @Column(name = "city")
-    @NotBlank
+    @NotBlank(message = "may not be empty")
     private String city;
 
     @Column(name = "telephone")
-    @NotBlank
+    @NotBlank(message = "may not be empty")
     @Digits(fraction = 0, integer = 10)
     private String telephone;
 

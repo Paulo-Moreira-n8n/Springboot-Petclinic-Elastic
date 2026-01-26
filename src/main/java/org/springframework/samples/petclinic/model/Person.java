@@ -29,11 +29,11 @@ import jakarta.validation.constraints.NotBlank;
 public class Person extends BaseEntity {
 
     @Column(name = "first_name")
-    @NotBlank
+    @NotBlank(message = "may not be empty")
     protected String firstName;
 
     @Column(name = "last_name")
-    @NotBlank
+    @NotBlank(message = "may not be empty")
     protected String lastName;
 
     public String getFirstName() {
