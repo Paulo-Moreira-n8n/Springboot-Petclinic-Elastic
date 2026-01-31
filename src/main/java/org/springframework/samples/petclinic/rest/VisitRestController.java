@@ -34,91 +34,99 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
-
-/**
- * @author Vitaliy Fedoriv
- *
- */
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 @RestController
-@CrossOrigin(exposedHeaders = "errors, content-type")
-@RequestMapping("api/visits")
+@CrossOrigin(exposedHeaders = { "errors", "content-type" })
+@RequestMapping("/api/visits")
 public class VisitRestController {
 
-	@Autowired
-	private ClinicService clinicService;
+    @Autowired
+    private ClinicService clinicService;
 
-    @PreAuthorize( "hasRole(@roles.OWNER_ADMIN)" )
-	@RequestMapping(value = "", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
-	public ResponseEntity<Collection<Visit>> getAllVisits(){
-		Collection<Visit> visits = new ArrayList<Visit>();
-		visits.addAll(this.clinicService.findAllVisits());
-		if (visits.isEmpty()){
-			return new ResponseEntity<Collection<Visit>>(HttpStatus.NOT_FOUND);
-		}
-		return new ResponseEntity<Collection<Visit>>(visits, HttpStatus.OK);
-	}
+    @PreAuthorize("hasRole('OWNER_ADMIN')")
+    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Collection<Visit>> getAllVisits() {
+        Collection<Visit> visits = new ArrayList<>();
+        visits.addAll(this.clinicService.findAllVisits());
+        if (visits.isEmpty()) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+        return new ResponseEntity<>(visits, HttpStatus.OK);
+    }
 
-    @PreAuthorize( "hasRole(@roles.OWNER_ADMIN)" )
-	@RequestMapping(value = "/{visitId}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
-	public ResponseEntity<Visit> getVisit(@PathVariable("visitId") int visitId){
-		Visit visit = this.clinicService.findVisitById(visitId);
-		if(visit == null){
-			return new ResponseEntity<Visit>(HttpStatus.NOT_FOUND);
-		}
-		return new ResponseEntity<Visit>(visit, HttpStatus.OK);
-	}
+    @PreAuthorize("hasRole('OWNER_ADMIN')")
+    @GetMapping(value = "/{visitId}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Visit> getVisit(@PathVariable("visitId") int visitId) {
+        Visit visit = this.clinicService.findVisitById(visitId);
+        if (visit == null) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+        return new ResponseEntity<>(visit, HttpStatus.OK);
+    }
 
-    @PreAuthorize( "hasRole(@roles.OWNER_ADMIN)" )
-	@RequestMapping(value = "", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
-	public ResponseEntity<Visit> addVisit(@RequestBody @Valid Visit visit, BindingResult bindingResult, UriComponentsBuilder ucBuilder){
-		BindingErrorsResponse errors = new BindingErrorsResponse();
-		HttpHeaders headers = new HttpHeaders();
-		if(bindingResult.hasErrors() || (visit == null) || (visit.getPet() == null)){
-			errors.addAllErrors(bindingResult);
-			headers.add("errors", errors.toJSON());
-			return new ResponseEntity<Visit>(headers, HttpStatus.BAD_REQUEST);
-		}
-		this.clinicService.saveVisit(visit);
-		headers.setLocation(ucBuilder.path("/api/visits/{id}").buildAndExpand(visit.getId()).toUri());
-		return new ResponseEntity<Visit>(visit, headers, HttpStatus.CREATED);
-	}
+    @PreAuthorize("hasRole('OWNER_ADMIN')")
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Visit> addVisit(@RequestBody @Valid Visit visit,
+                                          BindingResult bindingResult,
+                                          UriComponentsBuilder ucBuilder) {
+        BindingErrorsResponse errors = new BindingErrorsResponse();
+        HttpHeaders headers = new HttpHeaders();
 
-    @PreAuthorize( "hasRole(@roles.OWNER_ADMIN)" )
-	@RequestMapping(value = "/{visitId}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
-	public ResponseEntity<Visit> updateVisit(@PathVariable("visitId") int visitId, @RequestBody @Valid Visit visit, BindingResult bindingResult){
-		BindingErrorsResponse errors = new BindingErrorsResponse();
-		HttpHeaders headers = new HttpHeaders();
-		if(bindingResult.hasErrors() || (visit == null) || (visit.getPet() == null)){
-			errors.addAllErrors(bindingResult);
-			headers.add("errors", errors.toJSON());
-			return new ResponseEntity<Visit>(headers, HttpStatus.BAD_REQUEST);
-		}
-		Visit currentVisit = this.clinicService.findVisitById(visitId);
-		if(currentVisit == null){
-			return new ResponseEntity<Visit>(HttpStatus.NOT_FOUND);
-		}
-		currentVisit.setDate(visit.getDate());
-		currentVisit.setDescription(visit.getDescription());
-		currentVisit.setPet(visit.getPet());
-		this.clinicService.saveVisit(currentVisit);
-		return new ResponseEntity<Visit>(currentVisit, HttpStatus.NO_CONTENT);
-	}
+        if (bindingResult.hasErrors() || visit == null || visit.getPet() == null) {
+            errors.addAllErrors(bindingResult);
+            headers.add("errors", errors.toJSON());
+            return new ResponseEntity<>(headers, HttpStatus.BAD_REQUEST);
+        }
 
-    @PreAuthorize( "hasRole(@roles.OWNER_ADMIN)" )
-	@RequestMapping(value = "/{visitId}", method = RequestMethod.DELETE, produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
-	@Transactional
-	public ResponseEntity<Void> deleteVisit(@PathVariable("visitId") int visitId){
-		Visit visit = this.clinicService.findVisitById(visitId);
-		if(visit == null){
-			return new ResponseEntity<Void>(HttpStatus.NOT_FOUND);
-		}
-		this.clinicService.deleteVisit(visit);
-		return new ResponseEntity<Void>(HttpStatus.NO_CONTENT);
-	}
+        this.clinicService.saveVisit(visit);
+        headers.setLocation(ucBuilder.path("/api/visits/{id}").buildAndExpand(visit.getId()).toUri());
+        return new ResponseEntity<>(visit, headers, HttpStatus.CREATED);
+    }
 
+    @PreAuthorize("hasRole('OWNER_ADMIN')")
+    @PutMapping(value = "/{visitId}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Void> updateVisit(@PathVariable("visitId") int visitId,
+                                            @RequestBody @Valid Visit visit,
+                                            BindingResult bindingResult) {
+        BindingErrorsResponse errors = new BindingErrorsResponse();
+        HttpHeaders headers = new HttpHeaders();
+
+        if (bindingResult.hasErrors() || visit == null || visit.getPet() == null) {
+            errors.addAllErrors(bindingResult);
+            headers.add("errors", errors.toJSON());
+            return new ResponseEntity<>(headers, HttpStatus.BAD_REQUEST);
+        }
+
+        Visit currentVisit = this.clinicService.findVisitById(visitId);
+        if (currentVisit == null) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+
+        currentVisit.setDate(visit.getDate());
+        currentVisit.setDescription(visit.getDescription());
+        currentVisit.setPet(visit.getPet());
+        this.clinicService.saveVisit(currentVisit);
+
+        // 204 No Content — sem body e sem content-type
+        return ResponseEntity.noContent().build();
+    }
+
+    @PreAuthorize("hasRole('OWNER_ADMIN')")
+    @DeleteMapping(value = "/{visitId}")
+    @Transactional
+    public ResponseEntity<Void> deleteVisit(@PathVariable("visitId") int visitId) {
+        Visit visit = this.clinicService.findVisitById(visitId);
+        if (visit == null) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+        this.clinicService.deleteVisit(visit);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
 }

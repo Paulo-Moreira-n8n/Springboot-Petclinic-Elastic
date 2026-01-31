@@ -1,22 +1,5 @@
-/*
- * Copyright 2016-2017 the original author or authors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package org.springframework.samples.petclinic.repository.jpa;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -25,62 +8,66 @@ import jakarta.persistence.PersistenceContext;
 
 import org.springframework.context.annotation.Profile;
 import org.springframework.dao.DataAccessException;
-import org.springframework.samples.petclinic.model.Pet;
 import org.springframework.samples.petclinic.model.PetType;
-import org.springframework.samples.petclinic.model.Visit;
 import org.springframework.samples.petclinic.repository.PetTypeRepository;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
- * @author Vitaliy Fedoriv
- *
+ * JPA implementation of the {@link PetTypeRepository} interface.
  */
-
 @Repository
 @Profile("jpa")
+@Transactional(readOnly = true)
 public class JpaPetTypeRepositoryImpl implements PetTypeRepository {
-	
+
     @PersistenceContext
     private EntityManager em;
 
-	@Override
-	public PetType findById(int id) {
-		return this.em.find(PetType.class, id);
-	}
+    @Override
+    public PetType findById(int id) {
+        return this.em.find(PetType.class, id);
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public Collection<PetType> findAll() throws DataAccessException {
-		return this.em.createQuery("SELECT ptype FROM PetType ptype").getResultList();
-	}
+    @Override
+    public Collection<PetType> findAll() throws DataAccessException {
+        return this.em.createQuery("SELECT t FROM PetType t", PetType.class)
+                      .getResultList();
+    }
 
-	@Override
-	public void save(PetType petType) throws DataAccessException {
-		if (petType.getId() == null) {
+    @Override
+    @Transactional
+    public void save(PetType petType) throws DataAccessException {
+        if (petType.getId() == null) {
             this.em.persist(petType);
         } else {
             this.em.merge(petType);
         }
+    }
 
-	}
+    @Override
+    @Transactional
+    public void delete(PetType petType) throws DataAccessException {
+        if (petType == null || petType.getId() == null) {
+            return;
+        }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public void delete(PetType petType) throws DataAccessException {
-		this.em.remove(this.em.contains(petType) ? petType : this.em.merge(petType));
-		String petTypeId = petType.getId().toString();
-		
-		List<Pet> pets = new ArrayList<Pet>();
-		pets = this.em.createQuery("SELECT pet FROM Pet pet WHERE type_id=" + petTypeId).getResultList();
-		for (Pet pet : pets){
-			List<Visit> visits = new ArrayList<Visit>();
-			visits = pet.getVisits();
-			for (Visit visit : visits){
-				this.em.createQuery("DELETE FROM Visit visit WHERE id=" + visit.getId().toString()).executeUpdate();
-			}
-			this.em.createQuery("DELETE FROM Pet pet WHERE id=" + pet.getId().toString()).executeUpdate();
-		}
-		this.em.createQuery("DELETE FROM PetType pettype WHERE id=" + petTypeId).executeUpdate();
-	}
+        final Integer typeId = petType.getId();
 
+        // 1) Remover visitas de pets desse tipo (JPQL correta: usar propriedades, não nomes de coluna)
+        this.em.createQuery("DELETE FROM Visit v WHERE v.pet.type.id = :typeId")
+               .setParameter("typeId", typeId)
+               .executeUpdate();
+
+        // 2) Remover pets desse tipo
+        this.em.createQuery("DELETE FROM Pet p WHERE p.type.id = :typeId")
+               .setParameter("typeId", typeId)
+               .executeUpdate();
+
+        // 3) Remover o próprio tipo de forma segura (entidade gerenciada)
+        PetType managed = this.em.contains(petType) ? petType : this.em.find(PetType.class, typeId);
+        if (managed != null) {
+            this.em.remove(managed);
+        }
+    }
 }

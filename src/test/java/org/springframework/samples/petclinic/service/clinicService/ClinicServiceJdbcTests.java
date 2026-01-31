@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.springframework.samples.petclinic.service.clinicService;
 
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 /**
  * <p> Integration test using the jdbc profile.
@@ -27,10 +28,9 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
  * @author Michael Isvy
  * @see AbstractClinicServiceTests AbstractClinicServiceTests for more details. </p>
  */
+
 @SpringBootTest
-@RunWith(SpringJUnit4ClassRunner.class)
-@ActiveProfiles("jdbc, hsqldb")
+@ExtendWith(SpringExtension.class)
+@ActiveProfiles({"jdbc", "hsqldb"})
 public class ClinicServiceJdbcTests extends AbstractClinicServiceTests {
-
-
 }

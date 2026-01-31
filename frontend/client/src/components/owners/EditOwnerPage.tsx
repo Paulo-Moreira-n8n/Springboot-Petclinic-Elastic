@@ -1,52 +1,40 @@
-import * as React from 'react';
+
+import React, { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+
 import OwnerEditor from './OwnerEditor';
 import { APMService, punish } from '../../main';
 import { IOwner } from '../../types/index';
-import { url } from '../../util/index';
-import { request, xhr_request } from '../../util/index';
+import { xhr_request } from '../../util/index';
 
-interface IEditOwnerPageProps {
-  params?: { ownerId?: string };
-}
+const EditOwnerPage: React.FC = () => {
+  const { ownerId } = useParams();
+  const [owner, setOwner] = useState<IOwner | undefined>(undefined);
 
-interface IEditOwnerPageState {
-  owner: IOwner;
-}
-
-export default class EditOwnerPage extends React.Component<IEditOwnerPageProps, IEditOwnerPageState> {
-
-  constructor(props) {
-    super(props);
-  }
-
-  componentWillMount() {
+  useEffect(() => {
     APMService.getInstance().startTransaction('EditOwnerPage');
     punish();
-  }
 
-  componentDidMount() {
-    const { params } = this.props;
-
-    if (params && params.ownerId) {
-      xhr_request(`api/owners/${params.ownerId}`, (status, owner) =>  {
+    if (ownerId) {
+      xhr_request(`api/owners/${ownerId}`, (status, data) => {
         APMService.getInstance().endTransaction(true);
-        this.setState({ owner });
+        setOwner(data as IOwner);
       });
     } else {
       APMService.getInstance().endTransaction(true);
     }
+
+    return () => {
+      APMService.getInstance().endSpan();
+      APMService.getInstance().endTransaction(false);
+    };
+  }, [ownerId]);
+
+  if (owner) {
+    return <OwnerEditor initialOwner={owner} />;
   }
 
-  componentWillUnmount() {
-    APMService.getInstance().endSpan();
-    APMService.getInstance().endTransaction(false);
-  }
+  return null;
+};
 
-  render() {
-    const owner = this.state && this.state.owner;
-    if (owner) {
-      return <OwnerEditor initialOwner={owner} />;
-    }
-    return null;
-  }
-}
+export default EditOwnerPage;

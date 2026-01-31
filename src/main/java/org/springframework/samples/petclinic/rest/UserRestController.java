@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+
 package org.springframework.samples.petclinic.rest;
 
 import jakarta.validation.Valid;
@@ -30,29 +31,33 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PostMapping;
 
 @RestController
 @CrossOrigin(exposedHeaders = "errors, content-type")
-@RequestMapping("api/users")
+@RequestMapping("/api/users")
 public class UserRestController {
 
     @Autowired
     private UserService userService;
 
-    @PreAuthorize( "hasRole(@roles.ADMIN)" )
-    @RequestMapping(value = "", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
-    public ResponseEntity<User> addOwner(@RequestBody @Valid User user,  BindingResult bindingResult) throws Exception {
+    // Se você não tiver um bean chamado "roles" expondo ADMIN, troque por:
+    // @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole(@roles.ADMIN)")
+    @PostMapping(produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<User> createUser(@RequestBody @Valid User user, BindingResult bindingResult) throws Exception {
         BindingErrorsResponse errors = new BindingErrorsResponse();
         HttpHeaders headers = new HttpHeaders();
-        if (bindingResult.hasErrors() || (user == null)) {
+
+        if (bindingResult.hasErrors() || user == null) {
             errors.addAllErrors(bindingResult);
             headers.add("errors", errors.toJSON());
-            return new ResponseEntity<User>(user, headers, HttpStatus.BAD_REQUEST);
+            // corpo é opcional para 400; testes verificam apenas status
+            return new ResponseEntity<>(user, headers, HttpStatus.BAD_REQUEST);
         }
 
         this.userService.saveUser(user);
-        return new ResponseEntity<User>(user, headers, HttpStatus.CREATED);
+        return new ResponseEntity<>(user, headers, HttpStatus.CREATED);
     }
 }

@@ -27,6 +27,7 @@ import org.springframework.samples.petclinic.model.Pet;
 import org.springframework.samples.petclinic.model.PetType;
 import org.springframework.samples.petclinic.repository.PetRepository;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * JPA implementation of the {@link PetRepository} interface.
@@ -37,17 +38,19 @@ import org.springframework.stereotype.Repository;
  * @author Michael Isvy
  * @author Vitaliy Fedoriv
  */
+
 @Repository
 @Profile("jpa")
+@Transactional(readOnly = true)
 public class JpaPetRepositoryImpl implements PetRepository {
 
     @PersistenceContext
     private EntityManager em;
 
     @Override
-    @SuppressWarnings("unchecked")
+//    @SuppressWarnings("unchecked")
     public List<PetType> findPetTypes() {
-        return this.em.createQuery("SELECT ptype FROM PetType ptype ORDER BY ptype.name").getResultList();
+        return this.em.createQuery("SELECT ptype FROM PetType ptype ORDER BY ptype.name", PetType.class).getResultList();
     }
 
     @Override
@@ -56,6 +59,7 @@ public class JpaPetRepositoryImpl implements PetRepository {
     }
 
     @Override
+	@Transactional
     public void save(Pet pet) {
         if (pet.getId() == null) {
             this.em.persist(pet);
@@ -64,21 +68,26 @@ public class JpaPetRepositoryImpl implements PetRepository {
         }
     }
     
-	@SuppressWarnings("unchecked")
+//	@SuppressWarnings("unchecked")
 	@Override
 	public Collection<Pet> findAll() throws DataAccessException {
-		return this.em.createQuery("SELECT pet FROM Pet pet").getResultList();
+		return this.em.createQuery("SELECT pet FROM Pet pet", Pet.class).getResultList();
 	}
 
 	@Override
+	@Transactional
 	public void delete(Pet pet) throws DataAccessException {
-		//this.em.remove(this.em.contains(pet) ? pet : this.em.merge(pet));
-		String petId = pet.getId().toString();
-		this.em.createQuery("DELETE FROM Visit visit WHERE pet_id=" + petId).executeUpdate();
-		this.em.createQuery("DELETE FROM Pet pet WHERE id=" + petId).executeUpdate();
-		if (em.contains(pet)) {
-			em.remove(pet);
-		}
+		if (pet == null || pet.getId() == null) return;
+		final Integer petId = pet.getId();
+		this.em.createQuery("DELETE FROM Visit v WHERE v.pet.id = :petId")
+		.setParameter("petId", petId)
+		.executeUpdate();
+		
+        Pet managed = this.em.contains(pet) ? pet : this.em.find(Pet.class, petId);
+        if (managed != null) {
+            this.em.remove(managed);
+        }
+
 	}
 
 }

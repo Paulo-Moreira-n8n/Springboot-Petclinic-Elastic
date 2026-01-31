@@ -1,8 +1,6 @@
-require('jest');
 
+import { describe, it, expect } from 'vitest';
 import * as Constraints from '../../../../src/components/form/Constraints';
-
-const afunc = ({a}) => {};
 
 describe('Constraints', () => {
   describe('NotEmpty', () => {
@@ -10,10 +8,10 @@ describe('Constraints', () => {
       expect(Constraints.NotEmpty.validate('')).toBe(false);
     });
     it('should return false for null', () => {
-      expect(Constraints.NotEmpty.validate(null)).toBe(false);
+      expect(Constraints.NotEmpty.validate(null as any)).toBe(false);
     });
     it('should return false for undefined', () => {
-      expect(Constraints.NotEmpty.validate(undefined)).toBe(false);
+      expect(Constraints.NotEmpty.validate(undefined as any)).toBe(false);
     });
     it('should return true for a string', () => {
       expect(Constraints.NotEmpty.validate('Hello World')).toBe(true);

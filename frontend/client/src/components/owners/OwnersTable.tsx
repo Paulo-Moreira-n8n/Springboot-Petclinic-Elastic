@@ -1,5 +1,6 @@
-import * as React from 'react';
-import { Link } from 'react-router';
+
+import React from 'react';
+import { Link } from 'react-router-dom';
 import { IOwner } from '../../types/index';
 
 const renderRow = (owner: IOwner) => (
@@ -7,24 +8,24 @@ const renderRow = (owner: IOwner) => (
     <td>
       <Link to={`/owners/${owner.id}`}>{owner.firstName} {owner.lastName}</Link>
     </td>
-    <td className='hidden-sm hidden-xs'>{owner.address}</td>
+    <td className="hidden-sm hidden-xs">{owner.address}</td>
     <td>{owner.city}</td>
     <td>{owner.telephone}</td>
-    <td className='hidden-xs'>{owner.pets.map(pet => pet.name).join(', ')}</td>
+    <td className="hidden-xs">{owner.pets.map(pet => pet.name).join(', ')}</td>
   </tr>
 );
 
 const renderOwners = (owners: IOwner[]) => (
   <section>
     <h2>{owners.length} Owners found</h2>
-    <table className='table table-striped'>
+    <table className="table table-striped">
       <thead>
         <tr>
           <th>Name</th>
-          <th className='hidden-sm hidden-xs'>Address</th>
+          <th className="hidden-sm hidden-xs">Address</th>
           <th>City</th>
           <th>Telephone</th>
-          <th className='hidden-xs'>Pets</th>
+          <th className="hidden-xs">Pets</th>
         </tr>
       </thead>
       <tbody>
@@ -34,4 +35,4 @@ const renderOwners = (owners: IOwner[]) => (
   </section>
 );
 
-export default ({owners}: { owners: IOwner[] }) => owners ? renderOwners(owners) : null;
+export default ({ owners }: { owners: IOwner[] }) => owners ? renderOwners(owners) : null;

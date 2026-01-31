@@ -1,108 +1,163 @@
-const { Chromeless } = require('chromeless')
-const users_file='./users.csv'
-const csv=require('csvtojson')
-var baseUrl = process.env.PETCLINIC_BASE_URL || 'http://localhost:8081/owners/list';
-var url = baseUrl
-const chromeless = new Chromeless({ launchChrome: true,  waitTimeout: 30000, scrollBeforeClick: true, implicitWait: true });
+// custom_load.js
 
-async function readCSV(filename) {
-  return await csv({
-    noheader:true,
-    headers: ['username','ip','agent']
-  }).fromFile(filename);
-}
+const puppeteer = require('puppeteer');
+const csv = require('csvtojson');
 
-function sleep(ms){
-    return new Promise(resolve=>{
-        setTimeout(resolve,ms)
-    })
-}
+const usersFile = './users.csv';
+const baseUrl = process.env.PETCLINIC_BASE_URL || 'http://localhost:8081/owners/list';
 
-async function run(username, ip, agent) {
-    url = await chromeless
-    .goto(url)
-    .setExtraHTTPHeaders({
-        'x-forwarded-for': ip,
-        'x-forwarded-user': username,
-        'x-forwarded-ip': ip,
-        'user-agent': agent
-    })
-    .evaluate((url,baseUrl) => {
-        var timer = window.setInterval(function () {
-            //navigates around page dynamically
-            console.log("Moving from: "+url)
-            if (url.includes('vets')){
-                document.querySelector('a[href^="/owners/list"]').click();
-                url = document.querySelector('a[href^="/owners/list"]').href;
-            } else {
-                document.querySelector('a[href^="/vets"]').click();
-                url = document.querySelector('a[href^="/vets"]').href;
-            }
-        }, 2000 );
-        var uniq_links = {};
-        var links = document.querySelectorAll('a[href^="/"]');
-        for ( var i=0, len=links.length; i < len; i++ ) {
-            uniq_links[links[i].href] = links[i];
-        }
-        links = new Array();
-        for ( var key in uniq_links ) {
-            links.push(uniq_links[key]);
-        }
-        if (links && links.length) {
-            return links[Math.floor(Math.random()*links.length)].href;
-        } else {
-            return baseUrl;
-        }
-    }, url, baseUrl);
-    console.log(url);
-}
-
-async function safe_run() {
-      console.log('Starting from baseurl: '+url)
-      const users = await readCSV(users_file);
-      console.log(`Loaded ${users.length} users`)
-      for(;;) {
-          var user = users[Math.floor(Math.random() * users.length)]
-          console.log('Handing ' + url)
-          run(user.username,user.ip,user.agent).catch(async (error) => {
-              console.log("failed for url")
-              console.log(error);
-          });
-          await sleep(20000 + Math.floor(Math.random()*10000));
-      }
-}
-
-function selectRandomIP() {
-    return RANDOM_IPS[Math.floor(Math.random() * RANDOM_IPS.length)];
-}
-
-function loadRandomIPs() {
-    var IPs = [];
-    while (IPs.length < NUM_IPS) {
-      var randomIP = randomIp();
-      if (IPs.indexOf(randomIP) === -1) {
-        IPs.push(randomIP);
-      }
-    }
-    return IPs;
-}
-
-
-function randomByte () {
-  return Math.round(Math.random()*256);
+// Geração de IPs aleatórios (não privados)
+function randomByte() {
+  return Math.floor(Math.random() * 256);
 }
 
 function isPrivate(ip) {
-  return /^10\.|^192\.168\.|^172\.16\.|^172\.17\.|^172\.18\.|^172\.19\.|^172\.20\.|^172\.21\.|^172\.22\.|^172\.23\.|^172\.24\.|^172\.25\.|^172\.26\.|^172\.27\.|^172\.28\.|^172\.29\.|^172\.30\.|^172\.31\./.test(ip);
+  return /^10\.|^192\.168\.|^172\.(1[6-9]|2[0-9]|3[01])\./.test(ip);
 }
 
 function randomIp() {
-  var ip = randomByte() +'.' +
-           randomByte() +'.' +
-           randomByte() +'.' +
-           randomByte();
-  if (isPrivate(ip)) { return randomIp(); }
+  let ip;
+  do {
+    ip = `${randomByte()}.${randomByte()}.${randomByte()}.${randomByte()}`;
+  } while (isPrivate(ip));
   return ip;
 }
 
-safe_run().catch(console.error.bind(console))
+const NUM_IPS = 1000;
+const RANDOM_IPS = Array.from({ length: NUM_IPS }, () => randomIp());
+
+// Leitura de CSV
+async function readCSV(filename) {
+  return await csv({
+    noheader: true,
+    headers: ['username', 'ip', 'agent']
+  }).fromFile(filename);
+}
+
+// Função sleep
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Navegação entre owners e vets
+async function navigate(page, currentUrl, baseUrl) {
+  try {
+    await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+    // Verifica a URL atual e decide o próximo clique
+    let nextUrl;
+    if (currentUrl.includes('/vets')) {
+      // Está em /vets → vai para /owners/list
+      const ownerLink = await page.$('a[href^="/owners/list"]');
+      if (ownerLink) {
+        const href = await page.evaluate(el => el.href, ownerLink);
+        await ownerLink.click();
+        nextUrl = href;
+      } else {
+        nextUrl = baseUrl;
+      }
+    } else {
+      // Está em /owners/list → vai para /vets
+      const vetLink = await page.$('a[href^="/vets"]');
+      if (vetLink) {
+        const href = await page.evaluate(el => el.href, vetLink);
+        await vetLink.click();
+        nextUrl = href;
+      } else {
+        // Fallback: navegação aleatória
+        const links = await page.$$('a[href^="/"]');
+        if (links.length > 0) {
+          const randomLink = links[Math.floor(Math.random() * links.length)];
+          const href = await page.evaluate(el => el.href, randomLink);
+          await randomLink.click();
+          next url = href;
+        } else {
+          nextUrl = baseUrl;
+        }
+      }
+    }
+
+    // Aguarda navegação após clique
+    try {
+      await page.waitForNavigation({ timeout: 10000 });
+    } catch (e) {
+      // Ignora se não houver redirecionamento
+    }
+
+    return nextUrl || baseUrl;
+  } catch (error) {
+    console.error(`Erro ao navegar de ${currentUrl}:`, error.message);
+    return baseUrl;
+  }
+}
+
+// Execução por usuário
+async function run(browser, username, ip, agent, currentUrl) {
+  const page = await browser.newPage();
+
+  // Configura headers e user agent
+  await page.setExtraHTTPHeaders({
+    'x-forwarded-for': ip,
+    'x-forwarded-user': username,
+    'x-forwarded-ip': ip
+  });
+  await page.setUserAgent(agent);
+
+  try {
+    const newUrl = await navigate(page, currentUrl, baseUrl);
+    console.log(`Navigated to: ${newUrl}`);
+    return newUrl;
+  } finally {
+    await page.close();
+  }
+}
+
+// Loop principal
+async function safeRun() {
+  console.log(`Starting from baseurl: ${baseUrl}`);
+  const users = await readCSV(usersFile);
+  console.log(`Loaded ${users.length} users`);
+
+  // Lança o navegador uma única vez
+  const browser = await puppeteer.launch({
+    executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome',
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--single-process'
+    ]
+  });
+
+  let currentUrl = baseUrl;
+
+  for (;;) {
+    const user = users[Math.floor(Math.random() * users.length)];
+    console.log(`Handling ${currentUrl} for user ${user.username}`);
+
+    try {
+      currentUrl = await run(browser, user.username, user.ip, user.agent, currentUrl);
+    } catch (error) {
+      console.error('Falha na execução:', error);
+      currentUrl = baseUrl;
+    }
+
+    // Delay entre usuários: 20s + aleatório até 10s
+    await sleep(20000 + Math.floor(Math.random() * 10000));
+  }
+}
+
+// Tratamento de erros globais
+safeRun().catch(err => {
+  console.error('Erro fatal no base worker:', err);
+  process.exit(1);
+});
+
+// Encerramento gracioso
+process.on('SIGINT', async () => {
+  console.log('Encerrando base_worker...');
+  // O browser será encerrado automaticamente ao sair do processo
+  process.exit(0);
+});

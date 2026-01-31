@@ -1,8 +1,14 @@
-import * as React from 'react';
-import { Route, IndexRoute, Redirect } from 'react-router';
+// configureRoutes.tsx
+import React from 'react';
+import {
+  createBrowserRouter,
+  redirect
+} from 'react-router-dom';
 
+// Layout raiz
 import App from './components/App';
 
+// Páginas
 import WelcomePage from './components/WelcomePage';
 import FindOwnersPage from './components/owners/FindOwnersPage';
 import OwnersPage from './components/owners/OwnersPage';
@@ -13,25 +19,28 @@ import EditPetPage from './components/pets/EditPetPage';
 import VisitsPage from './components/visits/VisitsPage';
 import VetsPage from './components/vets/VetsPage';
 import ErrorPage from './components/ErrorPage';
-
-
 import NotFoundPage from './components/NotFoundPage';
 
+// Nota: Em v7, usamos rotas como objetos; o "index" substitui IndexRoute.
+export const router = createBrowserRouter([
+  {
+    element: <App />,
+    // (Opcional) errorElement geral para tratar erros de rotas/carregamento
+    errorElement: <ErrorPage />,
+    children: [
+      { index: true, element: <WelcomePage /> },               // '/' (index)
+      { path: '/owners/list', element: <FindOwnersPage /> },
+      { path: '/owners/new', element: <NewOwnerPage /> },
+      { path: '/owners/:ownerId/edit', element: <EditOwnerPage /> },
+      { path: '/owners/:ownerId/pets/:petId/edit', element: <EditPetPage /> },
+      { path: '/owners/:ownerId/pets/new', element: <NewPetPage /> },
+      { path: '/owners/:ownerId/pets/:petId/visits/new', element: <VisitsPage /> },
+      { path: '/owners/:ownerId', element: <OwnersPage /> },
+      { path: '/vets', element: <VetsPage /> },
+      { path: '/error', element: <ErrorPage /> },
+      { path: '*', element: <NotFoundPage /> }                  // fallback SPA
+    ]
+  }
+]);
 
-
-export default () => (
-  <Route component={App}>
-    <Route path='/' component={WelcomePage} />
-    <Route path='/owners/list' component={FindOwnersPage} />
-    <Route path='/owners/new' component={NewOwnerPage} />
-    <Route path='/owners/:ownerId/edit' component={EditOwnerPage} />
-    <Route path='/owners/:ownerId/pets/:petId/edit' component={EditPetPage} />
-    <Route path='/owners/:ownerId/pets/new' component={NewPetPage} />
-    <Route path='/owners/:ownerId/pets/:petId/visits/new' component={VisitsPage} />
-    <Route path='/owners/:ownerId' component={OwnersPage} />
-    <Route path='/vets' component={VetsPage} />
-    <Route path='/error' component={ErrorPage} />
-    <Route path='*' component={NotFoundPage} />
-  </Route>
-);
-
+export default router;

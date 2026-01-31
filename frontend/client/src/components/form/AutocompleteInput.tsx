@@ -1,14 +1,9 @@
-import * as React from 'react';
-const Autosuggest = require('react-autosuggest');
-import { url } from '../../util/index';
-import { IConstraint, IError, IInputFetchHandler, IInputValueHandler } from '../../types/index';
+
+import React from 'react';
+import Autosuggest from 'react-autosuggest';
+import { IInputFetchHandler, IInputValueHandler } from '../../types/index';
 
 import FieldFeedbackPanel from './FieldFeedbackPanel';
-
-const NoConstraint: IConstraint = {
-  message: '',
-  validate: v => true
-};
 
 interface IAutocompleteProps {
   name: string;
@@ -17,73 +12,56 @@ interface IAutocompleteProps {
   onFetch: IInputFetchHandler;
   onChange: IInputValueHandler;
   disabled: boolean;
-};
+}
 
 interface IAutocompleteState {
-  suggestions?: any[];
-};
+  suggestions: string[];
+}
 
 export default class AutocompleteInput extends React.Component<IAutocompleteProps, IAutocompleteState> {
-
-  constructor(props) {
+  constructor(props: IAutocompleteProps) {
     super(props);
-    this.state = {
-      suggestions: []
-    };
+    this.state = { suggestions: [] };
   }
 
-  getSuggestionValue(suggestion) {
-    return suggestion;
-  }
+  getSuggestionValue = (suggestion: string) => suggestion;
 
-  renderSuggestion(suggestion) {
-    return (
-      <span>{suggestion}</span>
-    );
-  }
+  renderSuggestion = (suggestion: string) => <span>{suggestion}</span>;
 
-  onSuggestionsFetchRequested = ({ value }) => {
-    console.log('fetch value: ' + value);
+  onSuggestionsFetchRequested = ({ value }: { value: string }) => {
     this.props.onFetch(value, (data) => {
-      this.setState({
-        suggestions: data
-      });
+      this.setState({ suggestions: data });
     });
   };
 
-  onSuggestionsClearRequested = () => {
-    this.setState({
-      suggestions: []
-    });
-  };
+  onSuggestionsClearRequested = () => this.setState({ suggestions: [] });
 
-  onChange = (event, { newValue, method }) => {
+  onChange = (_event: any, { newValue }: { newValue: string }) => {
     this.props.onChange(newValue);
   };
 
   render() {
     const { suggestions } = this.state;
-    const value = this.props.value;
-    const inputProps = {
-      placeholder: '',
-      value,
-      onChange: this.onChange
-    };
+    const { value, label, disabled } = this.props;
+
+    const inputProps = { placeholder: '', value, onChange: this.onChange };
     const cssGroup = `form-group`;
+
     return (
-        <div className={cssGroup}>
-          <label className='col-sm-2 control-label'>{this.props.label}</label>
-          <div className={this.props.disabled ? 'disable-form-control col-sm-10' : 'col-sm-10' }>
-            <Autosuggest
-                className='form-control'
-                suggestions={suggestions}
-                onSuggestionsFetchRequested={this.onSuggestionsFetchRequested}
-                onSuggestionsClearRequested={this.onSuggestionsClearRequested}
-                getSuggestionValue={this.getSuggestionValue}
-                renderSuggestion={this.renderSuggestion}
-                inputProps={inputProps} />
-            </div>
+      <div className={cssGroup}>
+        <label className="col-sm-2 control-label">{label}</label>
+        <div className={disabled ? 'disable-form-control col-sm-10' : 'col-sm-10'}>
+          <Autosuggest
+            className="form-control"
+            suggestions={suggestions}
+            onSuggestionsFetchRequested={this.onSuggestionsFetchRequested}
+            onSuggestionsClearRequested={this.onSuggestionsClearRequested}
+            getSuggestionValue={this.getSuggestionValue}
+            renderSuggestion={this.renderSuggestion}
+            inputProps={inputProps}
+          />
         </div>
-      );
-  };
+      </div>
+    );
+  }
 }

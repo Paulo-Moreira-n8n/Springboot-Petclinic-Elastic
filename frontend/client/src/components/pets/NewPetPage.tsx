@@ -1,74 +1,65 @@
-import * as React from 'react';
+
+import React, { useEffect, useRef, useState } from 'react';
+import { useParams } from 'react-router-dom';
 
 import { IOwner, IEditablePet, ISelectOption } from '../../types/index';
-
-import { url } from '../../util/index';
 import { APMService, punish } from '../../main';
 import LoadingPanel from './LoadingPanel';
 import PetEditor from './PetEditor';
-
 import createPetEditorModel from './createPetEditorModel';
 
-interface INewPetPageProps {
-  params: { ownerId: string };
-}
-
-interface INewPetPageState {
+interface IPetEditorModel {
   pet?: IEditablePet;
   owner?: IOwner;
   pettypes?: ISelectOption[];
-};
+}
 
 const NEW_PET: IEditablePet = {
+  // @ts-expect-error: id nulo na criação
   id: null,
   isNew: true,
   name: '',
-  birthDate: null,
-  type: null,
+  birthDate: null as any,
+  type: null as any,
   visits: [],
-  owner: null
+  owner: null as any
 };
 
-export default class NewPetPage extends React.Component<INewPetPageProps, INewPetPageState> {
+const NewPetPage: React.FC = () => {
+  const { ownerId } = useParams();
+  const initialRender = useRef(true);
+  const [model, setModel] = useState<IPetEditorModel | undefined>(undefined);
 
-
-  initial_render: boolean;
-
-  constructor() {
-    super();
-    this.initial_render = true;
+  useEffect(() => {
     APMService.getInstance().startTransaction('NewPetPage');
     punish();
-  }
 
+    const load = async () => {
+      if (!ownerId) return;
+      const m = await createPetEditorModel(ownerId, Promise.resolve(NEW_PET));
+      APMService.getInstance().startSpan('Page Render', 'react');
+      setModel(m);
+    };
 
-  componentDidUpdate() {
-    if (this.initial_render) {
+    load();
+
+    return () => {
+      APMService.getInstance().endSpan();
+      APMService.getInstance().endTransaction(false);
+    };
+  }, [ownerId]);
+
+  useEffect(() => {
+    if (initialRender.current && model) {
       APMService.getInstance().endSpan();
       APMService.getInstance().endTransaction(true);
+      initialRender.current = false;
     }
-    this.initial_render = false;
-  }
+  }, [model]);
 
+  if (!model) return <LoadingPanel />;
 
-  componentWillUnmount() {
-    APMService.getInstance().endSpan();
-    APMService.getInstance().endTransaction(false);
-  }
+  return <PetEditor {...model} />;
+};
 
-  componentDidMount() {
-    createPetEditorModel(this.props.params.ownerId, Promise.resolve(NEW_PET))
-      .then(model => {
-        APMService.getInstance().startSpan('Page Render', 'react');
-        this.setState(model);
-      });
-  }
-
-  render() {
-    if (!this.state) {
-      return <LoadingPanel />;
-    }
-
-    return <PetEditor {...this.state} />;
-  }
-}
+export default NewPetPage;

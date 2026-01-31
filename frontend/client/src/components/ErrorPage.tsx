@@ -1,58 +1,56 @@
-import * as React from 'react';
-import { xhr_request_promise, url } from '../util/index';
+
+import React, { useEffect, useState } from 'react';
+import { url } from '../util';
 import { APMService, punish } from '../main';
+
 interface IErrorPageState {
-  error?: {
-    status: string;
-    message: string;
-  };
+  status?: string;
+  message?: string;
 }
 
-export default class ErrorPage extends React.Component<void, IErrorPageState> {
-  constructor() {
-    super();
-    this.state = {};
-  }
+const ErrorPage: React.FC = () => {
+  const [error, setError] = useState<IErrorPageState | undefined>(undefined);
 
-  componentWillMount() {
+  useEffect(() => {
     APMService.getInstance().startTransaction('ErrorPage');
     punish();
-  }
 
-  componentWillUnmount() {
-    APMService.getInstance().endTransaction(false);
-  }
-
-  componentDidMount() {
-    if (Math.random() < 0.3) {
-      console.log.apply(console, new Array(1000000000));
-    } else {
-      const xhr = new XMLHttpRequest();
-      xhr.open('GET', url('api/error'), true);
-      xhr.onload = function(e) {
-        APMService.getInstance().captureError(JSON.parse(xhr.responseText).message);
+    const requestUrl = url('api/error');
+    fetch(requestUrl)
+      .then(async (resp) => {
+        const payload = await resp.json().catch(() => ({}));
+        if (payload && payload.message) {
+          APMService.getInstance().captureError(payload.message);
+        }
         APMService.getInstance().endTransaction(true);
-        this.setState({'error': JSON.parse(xhr.responseText)});
-      }.bind(this);
-      xhr.send(null);
-    }
-  }
+        setError(payload);
+      })
+      .catch((e) => {
+        APMService.getInstance().captureError(`Failed GET ${requestUrl} - ${e}`);
+        APMService.getInstance().endTransaction(false);
+        setError({ status: 'UNKNOWN', message: 'Unexpected error' });
+      });
 
-  render() {
-    const { error } = this.state;
+    return () => {
+      APMService.getInstance().endTransaction(false);
+    };
+  }, []);
 
-    return <span>
-      <img src='/images/pets.png' />
+  return (
+    <span>
+      <img src="/images/pets.png" />
 
       <h2>Something happened...</h2>
-      { error ?
+      {error ? (
         <span>
           <p><b>Status:</b> {error.status}</p>
           <p><b>Message:</b> {error.message}</p>
         </span>
-        :
-        <p><b>Unkown error</b></p>
-      }
-    </span>;
-  }
+      ) : (
+        <p><b>Unknown error</b></p>
+      )}
+    </span>
+  );
 };
+
+export default ErrorPage;

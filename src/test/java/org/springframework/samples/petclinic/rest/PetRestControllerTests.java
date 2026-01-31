@@ -29,9 +29,10 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -42,25 +43,19 @@ import org.springframework.samples.petclinic.model.PetType;
 import org.springframework.samples.petclinic.service.clinicService.ApplicationTestConfig;
 import org.springframework.samples.petclinic.service.ClinicService;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
-import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 
 /**
  * Test class for {@link PetRestController}
  *
  * @author Vitaliy Fedoriv
+ *
+ * Observação: Ajustado para JUnit 5 (Jupiter) e compatibilidade com Spring Boot 3.x.
  */
 
 @SpringBootTest
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes=ApplicationTestConfig.class)
-@WebAppConfiguration
 public class PetRestControllerTests {
 
     @Autowired
@@ -69,11 +64,14 @@ public class PetRestControllerTests {
     @MockBean
     protected ClinicService clinicService;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     private MockMvc mockMvc;
 
     private List<Pet> pets;
 
-    @Before
+    @BeforeEach
     public void initPets(){
     	this.mockMvc = MockMvcBuilders.standaloneSetup(petRestController)
     			.setControllerAdvice(new ExceptionControllerAdvice())

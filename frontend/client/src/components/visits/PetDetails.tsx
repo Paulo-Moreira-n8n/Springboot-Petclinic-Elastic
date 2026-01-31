@@ -1,9 +1,9 @@
-import * as React from 'react';
 
+import React from 'react';
 import { IOwner, IPet } from '../../types/index';
 
-export default ({owner, pet}: { owner: IOwner, pet: IPet }) => (
-  <table className='table table-striped'>
+export default ({ owner, pet }: { owner: IOwner; pet: IPet }) => (
+  <table className="table table-striped">
     <thead>
       <tr>
         <th>Name</th>

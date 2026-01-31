@@ -1,150 +1,138 @@
-import * as React from 'react';
 
-import { IOwner, IPet, IPetType, IVisit, IError, IRouterContext } from '../../types/index';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
-import { url, request, submitForm, xhr_request, xhr_submitForm } from '../../util/index';
+import { IOwner, IVisit, IError } from '../../types/index';
+import { xhr_request, xhr_submitForm } from '../../util/index';
 import { NotEmpty } from '../form/Constraints';
 import { APMService, punish } from '../../main';
 import DateInput from '../form/DateInput';
 import Input from '../form/Input';
 import PetDetails from './PetDetails';
 
-
-interface IVisitsPageProps {
-  params: {
-    ownerId: string,
-    petId: string
-  };
-}
-
-interface IVisitsPageState {
+interface IVisitsState {
   visit?: IVisit;
   owner?: IOwner;
   error?: IError;
 }
 
-export default class VisitsPage extends React.Component<IVisitsPageProps, IVisitsPageState> {
+const VisitsPage: React.FC = () => {
+  const { ownerId, petId } = useParams();
+  const navigate = useNavigate();
 
- initial_render: boolean;
- context: IRouterContext;
+  const [state, setState] = useState<IVisitsState | undefined>(undefined);
+  const initialRender = useRef(true);
 
-  static contextTypes = {
-    router: React.PropTypes.object.isRequired
-  };
-
-  constructor(props) {
-    super(props);
-    this.initial_render = true;
+  useEffect(() => {
     APMService.getInstance().startTransaction('VisitsPage');
     punish();
-    this.onInputChange = this.onInputChange.bind(this);
-    this.onSubmit = this.onSubmit.bind(this);
-  }
 
-  componentDidMount() {
-    const { params } = this.props;
-    if (params && params.ownerId) {
-      xhr_request(`api/owners/${params.ownerId}`, (status, owner) =>  {
+    if (ownerId) {
+      xhr_request(`api/owners/${ownerId}`, (status, owner) => {
         APMService.getInstance().startSpan('Page Render', 'react');
-        this.setState( { owner: owner, visit: { id: null, isNew: true, date: null, description: '' } });
+        setState({
+          owner,
+          // @ts-expect-error manter compat com DateInput (string|null aceito)
+          visit: { id: null, isNew: true, date: null, description: '' }
+        });
       });
     }
-  }
 
-  componentWillUnmount() {
-    APMService.getInstance().endSpan();
-    APMService.getInstance().endTransaction(false);
-  }
+    return () => {
+      APMService.getInstance().endSpan();
+      APMService.getInstance().endTransaction(false);
+    };
+  }, [ownerId]);
 
-  componentDidUpdate() {
-    if (this.initial_render) {
+  useEffect(() => {
+    if (initialRender.current && state?.owner) {
       APMService.getInstance().endSpan();
       APMService.getInstance().endTransaction(true);
+      initialRender.current = false;
     }
-    this.initial_render = false;
-  }
+  }, [state]);
 
-  onSubmit(event) {
-    event.preventDefault();
+  const onInputChange = useCallback((name: string, value: string) => {
+    setState((prev) => {
+      if (!prev) return prev;
+      return { ...prev, visit: Object.assign({}, prev.visit, { [name]: value }) };
+    });
+  }, []);
+
+  const onSubmit = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    if (!state?.owner || !petId) return;
+
     APMService.getInstance().startTransaction('CreateVisit');
-    const petId = this.props.params.petId;
-    const { owner, visit } = this.state;
-    let pet = owner.pets.find(candidate => candidate.id.toString() === petId);
+    const { owner, visit } = state;
+    const pet = owner.pets.find((p) => String(p.id) === String(pId));
+
+    if (!pet) return;
+
     const request = {
       id: null,
-      date: visit.date,
-      description: visit.description,
+      date: visit?.date as any,
+      description: visit?.description,
       pet: {
-          birthDate: pet.birthDate,
-          id: pet.id,
-          name: pet.name,
-          type: pet.type,
-          visits: [],
-          owner: {
-            address: owner.address,
-            city: owner.city,
-            state: owner.state,
-            zipCode: owner.zipCode,
-            firstName: owner.firstName,
-            lastName: owner.lastName,
-            telephone: owner.telephone,
-            pets: [],
-            id: owner.id
-          }
+        birthDate: pet.birthDate,
+        id: pet.id,
+        name: pet.name,
+        type: pet.type,
+        visits: [],
+        owner: {
+          address: owner.address,
+          city: owner.city,
+          state: owner.state,
+          zipCode: owner.zipCode,
+          firstName: owner.firstName,
+          lastName: owner.lastName,
+          telephone: owner.telephone,
+          pets: [],
+          id: owner.id
+        }
       }
     };
 
-    const url = 'api/visits';
-    xhr_submitForm('POST', url, request, (status, response) => {
+    xhr_submitForm('POST', 'api/visits', request, (status, response) => {
       if (status === 201) {
         APMService.getInstance().endTransaction(true);
-        this.context.router.push({
-          pathname: '/owners/' + owner.id
-        });
+        navigate(`/owners/${owner.id}`);
       } else {
         APMService.getInstance().endTransaction(false);
-        console.log('ERROR?!...', response);
-        this.setState({ error: response });
+        setState((prev) => ({ ...(prev as IVisitsState), error: response }));
       }
     });
+  }, [state, petId, navigate]);
+
+  if (!state?.owner) {
+    return <h2>Loading...</h2>;
   }
 
-  onInputChange(name: string, value: string) {
-    const { visit } = this.state;
+  const { owner, error, visit } = state;
+  const pet = owner.pets.find((p) => String(p.id) === String(petId));
 
-    this.setState(
-      { visit: Object.assign({}, visit, { [name]: value }) }
-    );
-  }
+  if (!pet) return <h2>Pet not found</h2>;
 
-  render() {
-    if (!this.state) {
-      return <h2>Loading...</h2>;
-    }
+  return (
+    <div>
+      <h2>Visits</h2>
+      <b>Pet</b>
+      <PetDetails owner={owner} pet={pet} />
 
-    const { owner, error, visit } = this.state;
-    const petId = this.props.params.petId;
-
-    const pet = owner.pets.find(candidate => candidate.id.toString() === petId);
-
-    return (
-      <div>
-        <h2>Visits</h2>
-        <b>Pet</b>
-        <PetDetails owner={owner} pet={pet} />
-
-        <form className='form-horizontal' method='POST' action={url('/api/owner')}>
-          <div className='form-group has-feedback'>
-            <DateInput object={visit} error={error} label='Date' name='date' onChange={this.onInputChange} />
-            <Input object={visit} error={error} constraint={NotEmpty} label='Description' name='description' onChange={this.onInputChange} />
+      {/* action não é necessária, submit controlado */}
+      <form className="form-horizontal" method="POST" action="#">
+        <div className="form-group has-feedback">
+          <DateInput object={visit as any} error={error as IError} label="Date" name="date" onChange={onInputChange} />
+          <Input object={visit as any} error={error as IError} constraint={NotEmpty} label="Description" name="description" onChange={onInputChange} />
+        </div>
+        <div className="form-group">
+          <div className="col-sm-offset-2 col-sm-10">
+            <button className="btn btn-default" type="submit" onClick={onSubmit}>Add Visit</button>
           </div>
-          <div className='form-group'>
-            <div className='col-sm-offset-2 col-sm-10'>
-              <button className='btn btn-default' type='submit' onClick={this.onSubmit}>Add Visit</button>
-            </div>
-          </div>
-        </form>
-      </div>
-    );
-  }
-}
+        </div>
+      </form>
+    </div>
+  );
+};
+
+export default VisitsPage;

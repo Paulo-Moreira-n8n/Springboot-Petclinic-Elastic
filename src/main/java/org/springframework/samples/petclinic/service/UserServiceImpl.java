@@ -8,29 +8,35 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class UserServiceImpl implements UserService {
 
-    @Autowired
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
+
+    public UserServiceImpl(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
 
     @Override
-    @Transactional
-    public void saveUser(User user) throws Exception {
-
-        if(user.getRoles() == null || user.getRoles().isEmpty()) {
-            throw new Exception("User must have at least a role set!");
+    public void saveUser(User user) {
+        // valida mínimo exigido pelo bean validation
+        if (user.getRoles() == null || user.getRoles().isEmpty()) {
+            throw new IllegalArgumentException("User must have at least one role");
         }
 
-        for (Role role : user.getRoles()) {
-            if(!role.getName().startsWith("ROLE_")) {
-                role.setName("ROLE_" + role.getName());
+        // normaliza roles e garante a relação bidirecional
+        user.getRoles().forEach(role -> {
+            String name = role.getName();
+            if (name != null && !name.startsWith("ROLE_")) {
+                role.setName("ROLE_" + name);
             }
-
-            if(role.getUser() == null) {
+            if (role.getUser() == null) {
                 role.setUser(user);
             }
-        }
+        });
 
+        // persiste (agora usando persist por causa de Persistable#isNew)
         userRepository.save(user);
     }
 }
+

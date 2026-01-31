@@ -1,68 +1,53 @@
-import * as React from 'react';
 
-import { Link } from 'react-router';
+import React, { useEffect, useRef, useState } from 'react';
+import { useParams } from 'react-router-dom';
+
 import { IOwner } from '../../types/index';
-import { request, xhr_request } from '../../util/index';
+import { xhr_request } from '../../util/index';
 import OwnerInformation from './OwnerInformation';
 import PetsTable from './PetsTable';
 import { APMService, punish } from '../../main';
 
-interface IOwnersPageProps {
-  params?: { ownerId?: string };
-}
+const OwnersPage: React.FC = () => {
+  const { ownerId } = useParams();
+  const initialRender = useRef(true);
+  const [owner, setOwner] = useState<IOwner | undefined>(undefined);
 
-interface IOwnerPageState {
-  owner?: IOwner;
-}
-
-export default class OwnersPage extends React.Component<IOwnersPageProps, IOwnerPageState> {
-
-  initial_render: boolean;
-
-  constructor() {
-    super();
-    this.initial_render = true;
+  useEffect(() => {
     APMService.getInstance().startTransaction('OwnersPage');
     punish();
-    this.state = {};
-  }
 
-  componentDidMount() {
-    const { params } = this.props;
-
-    if (params && params.ownerId) {
-      xhr_request(`api/owners/${params.ownerId}`, (status, owner) =>  {
+    if (ownerId) {
+      xhr_request(`api/owners/${ownerId}`, (status, data) => {
         APMService.getInstance().startSpan('Page Render', 'react');
-        this.setState({ owner });
+        setOwner(data as IOwner);
       });
     }
-  }
 
-  componentDidUpdate() {
-    if (this.initial_render) {
+    return () => {
+      APMService.getInstance().endSpan();
+      APMService.getInstance().endTransaction(false);
+    };
+  }, [ownerId]);
+
+  useEffect(() => {
+    if (initialRender.current) {
       APMService.getInstance().endSpan();
       APMService.getInstance().endTransaction(true);
+      initialRender.current = false;
     }
-    this.initial_render = false;
+  }, [owner]);
+
+  if (!owner) {
+    return <h2>No Owner loaded</h2>;
   }
 
-  componentWillUnmount() {
-    APMService.getInstance().endSpan();
-    APMService.getInstance().endTransaction(false);
-  }
+  return (
+    <span>
+      <OwnerInformation owner={owner} />
+      <PetsTable owner={owner} />
+    </span>
+  );
+};
 
-  render() {
-    const { owner } = this.state;
-
-    if (!owner) {
-      return <h2>No Owner loaded</h2>;
-    }
-
-    return (
-      <span>
-        <OwnerInformation owner={owner} />
-        <PetsTable owner={owner} />
-      </span>
-    );
-  }
-}
+export default OwnersPage;

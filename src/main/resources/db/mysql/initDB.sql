@@ -4,8 +4,6 @@ ALTER DATABASE petclinic
   DEFAULT CHARACTER SET utf8
   DEFAULT COLLATE utf8_general_ci;
 
-GRANT ALL PRIVILEGES ON petclinic.* TO pc@localhost IDENTIFIED BY 'pc';
-
 USE petclinic;
 
 CREATE TABLE IF NOT EXISTS vets (
@@ -24,8 +22,8 @@ CREATE TABLE IF NOT EXISTS specialties (
 CREATE TABLE IF NOT EXISTS vet_specialties (
   vet_id INT(4) UNSIGNED NOT NULL,
   specialty_id INT(4) UNSIGNED NOT NULL,
-  FOREIGN KEY (vet_id) REFERENCES vets(id),
-  FOREIGN KEY (specialty_id) REFERENCES specialties(id),
+  FOREIGN KEY (vet_id) REFERENCES vets(id)  ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (specialty_id) REFERENCES specialties(id) ON DELETE CASCADE ON UPDATE CASCADE,
   UNIQUE (vet_id,specialty_id)
 ) engine=InnoDB;
 

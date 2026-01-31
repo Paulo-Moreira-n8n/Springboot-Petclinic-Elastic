@@ -1,282 +1,228 @@
-import * as React from 'react';
 
-import { IRouter, Link } from 'react-router';
-import { url, submitForm, request_promise, xhr_submitForm, xhr_request_promise } from '../../util/index';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+import { url, xhr_submitForm, xhr_request_promise } from '../../util/index';
 import Input from '../form/Input';
 import SelectInput from '../form/SelectInput';
 import AutocompleteInput from '../form/AutocompleteInput';
 import { APMService, punish } from '../../main';
 import { Digits, NotEmpty } from '../form/Constraints';
-import { IInputChangeHandler, IFieldError, IError, IOwner, IRouterContext, ISelectOption } from '../../types/index';
+import { IInputChangeHandler, IFieldError, IError, IOwner, ISelectOption } from '../../types/index';
 
 interface IOwnerEditorProps {
   initialOwner?: IOwner;
 }
 
-interface IOwnerEditorState {
-  owner?: IOwner;
-  error?: IError;
-  states?: ISelectOption[];
-  cities?: ISelectOption[];
-  addresses?: ISelectOption[];
-  loading?: boolean;
-};
+const OwnerEditor: React.FC<IOwnerEditorProps> = ({ initialOwner }) => {
+  const navigate = useNavigate();
 
-export default class OwnerEditor extends React.Component<IOwnerEditorProps, IOwnerEditorState> {
+  const initialRender = useRef(true);
+  const lastUsedZip = useRef<string | null>(null);
 
-  context: IRouterContext;
-  initial_render: boolean;
-  last_used_zip: string;
+  const [owner, setOwner] = useState<IOwner>(() => Object.assign({}, initialOwner));
+  const [error, setError] = useState<IError | undefined>(undefined);
+  const [states, setStates] = useState<ISelectOption[]>([{ value: '', name: '' }]);
+  const [cities, setCities] = useState<ISelectOption[]>([{ value: '', name: '' }]);
+  const [addresses, setAddresses] = useState<ISelectOption[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
 
-  static contextTypes = {
-    router: React.PropTypes.object.isRequired
-  };
-
-  constructor(props) {
-    super(props);
+  useEffect(() => {
     APMService.getInstance().startTransaction('OwnerEditor');
     punish();
-    this.initial_render = true;
-    this.last_used_zip = null;
-    this.onInputChange = this.onInputChange.bind(this);
-    this.onZipChange = this.onZipChange.bind(this);
-    this.address_service_fetch = this.address_service_fetch.bind(this);
-    this.xhr_address_service_fetch = this.xhr_address_service_fetch.bind(this);
-    this.onStateChange = this.onStateChange.bind(this);
-    this.onCityChange = this.onCityChange.bind(this);
-    this.onAddressChange = this.onAddressChange.bind(this);
-    this.onAddressFetch = this.onAddressFetch.bind(this);
-    this.onSubmit = this.onSubmit.bind(this);
-    this.state = {
-      owner: Object.assign({}, props.initialOwner),
-      states: [{'value': '', 'name': ''}],
-      cities: [{'value': '', 'name': ''}],
-      addresses: []
-    };
-  }
 
-  componentDidMount() {
-    if (this.state.owner.zipCode && this.state.owner.zipCode !== '') {
-      return Promise.all(
-        [
-          xhr_request_promise('api/find_state', 'POST', { zip_code: this.state.owner.zipCode }),
-          xhr_request_promise('api/find_city', 'POST', { zip_code: this.state.owner.zipCode, state: this.state.owner.state })
-        ]
-      ).then(response => {
-        // TODO: Currently fails silently - maybe warn if error vs no data
+    const bootstrap = async () => {
+      if (owner?.zipCode && owner.zipCode !== '') {
+        try {
+          const [st, ct] = await Promise.all([
+            xhr_request_promise('api/find_state', 'POST', { zip_code: owner.zipCode }),
+            xhr_request_promise('api/find_city', 'POST', { zip_code: owner.zipCode, state: owner.state })
+          ]);
+          APMService.getInstance().startSpan('Page Render', 'react');
+
+          const statesList = st?.states ? st.states.map((s: string) => ({ value: s, name: s })) : [];
+          statesList.unshift({ value: '', name: '' });
+          const citiesList = ct?.cities ? ct.cities.map((c: string) => ({ value: c, name: c })) : [];
+          citiesList.unshift({ value: '', name: '' });
+
+          setStates(statesList);
+          setCities(citiesList);
+        } catch {
+          // falha silenciosa (mantemos comportamento original)
+        }
+      } else {
         APMService.getInstance().startSpan('Page Render', 'react');
-        let states = response[0] && response[0].states ? response[0].states.map(state => ({ value: state, name: state })) : [];
-        states.unshift({'value': '', 'name': ''});
-        let cities = response[1] && response[1].cities ? response[1].cities.map(state => ({ value: state, name: state })) : [];
-        cities.unshift({'value': '', 'name': ''});
-        this.setState({
-          states: states,
-          cities: cities
-        });
-      });
-    } else {
-      APMService.getInstance().startSpan('Page Render', 'react');
-      this.setState({
-        states: [{'value': '', 'name': ''}],
-        cities: [{'value': '', 'name': ''}]
-      });
-    }
+        setStates([{ value: '', name: '' }]);
+        setCities([{ value: '', name: '' }]);
+      }
+    };
 
-  }
+    bootstrap();
 
-  componentWillUnmount() {
-    APMService.getInstance().endSpan();
-    APMService.getInstance().endTransaction(false);
-  }
+    return () => {
+      APMService.getInstance().endSpan();
+      APMService.getInstance().endTransaction(false);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-
-  componentDidUpdate() {
-    if (this.initial_render) {
+  useEffect(() => {
+    if (initialRender.current) {
       APMService.getInstance().endSpan();
       APMService.getInstance().endTransaction(true);
+      initialRender.current = false;
     }
-    this.initial_render = false;
-  }
+  }, [states, cities]);
 
-
-  onSubmit(event) {
-    const { owner } = this.state;
-    const url = owner.isNew ? 'api/owners' : 'api/owners/' + owner.id;
-    this.setState({ error: {'fieldErrors': {}}, loading: true });
-    APMService.getInstance().startTransaction( owner.isNew ? 'CreateOwner' : 'UpdateOwner');
+  const onSubmit = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
-    xhr_submitForm(owner.isNew ? 'POST' : 'PUT', url, owner, (status, response) => {
+    const postUrl = owner.isNew ? 'api/owners' : 'api/owners/' + owner.id;
+
+    setError({ fieldErrors: {} as any });
+    setLoading(true);
+
+    APMService.getInstance().startTransaction(owner.isNew ? 'CreateOwner' : 'UpdateOwner');
+
+    xhr_submitForm(owner.isNew ? 'POST' : 'PUT', postUrl, owner, (status, response) => {
       if (status === 204 || status === 201) {
         APMService.getInstance().endTransaction(true);
         const owner_id = owner.isNew ? (response as IOwner).id : owner.id;
-        this.context.router.push({
-          pathname: '/owners/' + owner_id
-        });
+        navigate(`/owners/${owner_id}`);
       } else {
         APMService.getInstance().endTransaction(false);
-        let fieldErrors = response.reduce(function(map, error) {
-            map[error.fieldName] = { 'field': error.fieldName, 'message': error.errorMessage };
-            return map;
-        }, {});
-        this.setState({ error: {'fieldErrors': fieldErrors}, loading: false });
+        const fieldErrors = (response as any[]).reduce((map, err) => {
+          map[err.fieldName] = { field: err.fieldName, message: err.errorMessage };
+          return map;
+        }, {} as Record<string, IFieldError>);
+        setError({ fieldErrors });
+        setLoading(false);
       }
     });
-  }
+  }, [navigate, owner]);
 
-  onInputChange(name: string, value: string, fieldError: IFieldError) {
-    const { owner, error } = this.state;
-    const modifiedOwner = Object.assign({}, owner, { [name]: value });
-    const newFieldErrors = error ? Object.assign({}, error.fieldErrors, {[name]: fieldError }) : {[name]: fieldError };
-    this.setState({
-      owner: modifiedOwner,
-      error: { fieldErrors: newFieldErrors }
+  const onInputChange: IInputChangeHandler = useCallback((name, value, fieldError) => {
+    setOwner((prev) => Object.assign({}, prev, { [name]: value }));
+    setError((prev) => {
+      const newFieldErrors = prev ? Object.assign({}, prev.fieldErrors, { [name]: fieldError }) : { [name]: fieldError };
+      return { fieldErrors: newFieldErrors };
     });
-  }
+  }, []);
 
-  address_service_fetch = (requestUrl: string, fetchParams: any, onSuccess: (data: any) => void) => {
-    fetch(requestUrl, fetchParams)
-      .then(response =>  {
-          if (response.status === 200) {
-              response.json().then(data => {
-                  onSuccess(data);
-              });
-          } else {
-            APMService.getInstance().captureError(`Failed POST on ${requestUrl} - ${response.status} ${response.statusText}`);
-            onSuccess(null);
-          }
-      });
-  }
-
-  // temporarily needed as fetch isn't supported by Elastic APM
-  xhr_address_service_fetch = (requestUrl: string, body: any, onSuccess: (data: any) => void) => {
+  const xhr_address_service_fetch = useCallback((requestUrl: string, body: any, onSuccess: (data: any) => void) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', requestUrl, true);
     xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.onload = function(e) {
-      if (xhr.status ===  200) {
-          onSuccess(JSON.parse(xhr.responseText));
+    xhr.onload = function () {
+      if (xhr.status === 200) {
+        onSuccess(JSON.parse(xhr.responseText));
       } else {
         APMService.getInstance().captureError(`Failed GET on ${requestUrl} - ${xhr.status} ${xhr.statusText}`);
         onSuccess(null);
       }
     };
-    xhr.onerror = function(e) {
-       APMService.getInstance().captureError(`Failed GET on ${requestUrl} - ${xhr.status} ${xhr.statusText}`);
-       onSuccess(null);
+    xhr.onerror = function () {
+      APMService.getInstance().captureError(`Failed GET on ${requestUrl} - ${xhr.status} ${xhr.statusText}`);
+      onSuccess(null);
     };
-    let payload = null;
-    if (body) {
-      payload = JSON.stringify(body);
-    }
-    xhr.send(payload);
-  };
+    xhr.send(JSON.stringify(body || null));
+  }, []);
 
-
-  onZipChange(name: string, value: string) {
-    const { owner } = this.state;
-    if (value.trim() !== '' && this.last_used_zip !== value) {
+  const onZipChange = useCallback((name: string, value: string) => {
+    if (value.trim() !== '' && lastUsedZip.current !== value) {
       APMService.getInstance().startTransaction('OwnerEditor:ZipChange');
       const requestUrl = url('api/find_state');
-      this.xhr_address_service_fetch(requestUrl, { zip_code: value }, (data) => {
+
+      xhr_address_service_fetch(requestUrl, { zip_code: value }, (data) => {
         if (data) {
-          let states = data.states ? data.states.map(state => ({ value: state, name: state })) : [];
+          const statesList = data.states ? data.states.map((s: string) => ({ value: s, name: s })) : [];
           const modifiedOwner = Object.assign({}, owner, { [name]: value, ['state']: '', ['city']: '' });
-          states.unshift({'value': '', 'name': ''});
+          statesList.unshift({ value: '', name: '' });
+
           APMService.getInstance().endTransaction(true);
-          this.last_used_zip = value;
-          this.setState({
-            owner: modifiedOwner,
-            states: states,
-            cities: [{'value': '', 'name': ''}]
-          });
+          lastUsedZip.current = value;
+
+          setOwner(modifiedOwner);
+          setStates(statesList);
+          setCities([{ value: '', name: '' }]);
         } else {
-          // TODO: silent failure curently. Indicate failure to user
           APMService.getInstance().endTransaction(false);
         }
       });
     }
-  }
+  }, [owner, xhr_address_service_fetch]);
 
-  onStateChange(name: string, value: string, fieldError: IFieldError) {
+  const onStateChange = useCallback((name: string, value: string) => {
     APMService.getInstance().startTransaction('OwnerEditor:StateChange');
+
     const requestUrl = url('api/find_city');
-    const { owner } = this.state;
     const modifiedOwner = Object.assign({}, owner, { [name]: value, ['city']: '' });
-    this.setState({
-      owner: modifiedOwner
-    });
-    this.xhr_address_service_fetch(requestUrl, { zip_code: owner.zipCode, state: value }, (data) => {
+    setOwner(modifiedOwner);
+
+    xhr_address_service_fetch(requestUrl, { zip_code: owner.zipCode, state: value }, (data) => {
       if (data) {
-        let cities = data.cities ? data.cities.map(city => ({ value: city, name: city })) : [];
-        cities.unshift({'value': '', 'name': ''});
+        const citiesList = data.cities ? data.cities.map((c: string) => ({ value: c, name: c })) : [];
+        citiesList.unshift({ value: '', name: '' });
+
         APMService.getInstance().endTransaction(true);
-        this.setState({
-          cities: cities
-        });
+        setCities(citiesList);
       } else {
-        // TODO: silent failure curently. Indicate failure to user
         APMService.getInstance().endTransaction(false);
       }
     });
-  }
+  }, [owner, xhr_address_service_fetch]);
 
-  onCityChange(name: string, value: string, fieldError: IFieldError) {
-    const { owner } = this.state;
-    const modifiedOwner = Object.assign({}, owner, { [name]: value });
-    this.setState({
-      owner: modifiedOwner
-    });
-  }
+  const onCityChange = useCallback((name: string, value: string) => {
+    setOwner((prev) => Object.assign({}, prev, { [name]: value }));
+  }, []);
 
-  onAddressFetch(value: string, onSuccess: (data: any) => void ) {
-    const { owner } = this.state;
+  const onAddressFetch = useCallback((value: string, onSuccess: (data: any) => void) => {
     if (value.length > 3 && /\s/.test(value) && value !== owner.address) {
       APMService.getInstance().startTransaction('OwnerEditor:FindAddress');
       const requestUrl = url('api/find_address');
-      this.xhr_address_service_fetch(requestUrl, { zip_code: owner.zipCode, state: owner.state, city: owner.city, address: owner.address }, (data) => {
-        if (data) {
-          onSuccess(data.addresses);
-          APMService.getInstance().endTransaction(true);
-        } else {
-          APMService.getInstance().endTransaction(false);
+
+      xhr_address_service_fetch(
+        requestUrl,
+        { zip_code: owner.zipCode, state: owner.state, city: owner.city, address: owner.address },
+        (data) => {
+          if (data) {
+            onSuccess(data.addresses);
+            APMService.getInstance().endTransaction(true);
+          } else {
+            APMService.getInstance().endTransaction(false);
+          }
         }
-
-        // TODO: silent failure curently. Indicate failure to user
-      });
+      );
     }
-  }
+  }, [owner, xhr_address_service_fetch]);
 
-  onAddressChange(value: string ) {
-    const { owner } = this.state;
-    const modifiedOwner = Object.assign({}, owner, { ['address']: value });
-    this.setState({
-      owner: modifiedOwner
-    });
-  }
+  const onAddressChange = useCallback((value: string) => {
+    setOwner((prev) => Object.assign({}, prev, { ['address']: value }));
+  }, []);
 
-  render() {
-    const { owner, error, states, cities, addresses, loading } = this.state;
-    return (
-        <span id='owner_editor'>
-          <div className='loader' style={ !loading ? { 'display': 'none' } : {} }></div>
-          <h2>{owner.isNew ? 'Add Owner' : 'Update Owner'}</h2>
-          <form className='form-horizontal' method='POST' action={url(owner.isNew ? 'api/owners' : 'api/owners/' + owner.id)}>
-            <div className='form-group has-feedback'>
-              <Input object={owner} error={error} constraint={NotEmpty} label='First Name' name='firstName' onChange={this.onInputChange} disabled={loading} />
-              <Input object={owner} error={error} constraint={NotEmpty} label='Last Name' name='lastName' onChange={this.onInputChange} disabled={loading} />
-              <Input object={owner} error={error} constraint={NotEmpty} label='Zip Code' name='zipCode' onChange={this.onInputChange} onBlur={this.onZipChange} disabled={loading} />
-              <SelectInput object={owner} error={error} size={1} label='State' name='state' options={states} onChange={this.onStateChange} disabled={loading || states.length === 1} />
-              <SelectInput object={owner} error={error} size={1} label='City' name='city' options={cities} onChange={this.onCityChange} disabled={loading || cities.length === 1}/>
-              <AutocompleteInput value={owner.address} label='Address' name='address' onFetch={this.onAddressFetch} onChange={this.onAddressChange} disabled={loading} />
-              <Input object={owner} error={error} constraint={Digits(10)} label='Telephone' name='telephone' onChange={this.onInputChange} disabled={loading} />
-            </div>
-            <div className='form-group'>
-              <div className='col-sm-offset-2 col-sm-10'>
-                <button className='btn btn-default' type='submit' onClick={this.onSubmit}>{owner.isNew ? 'Add Owner' : 'Update Owner'}</button>
-              </div>
-            </div>
-          </form>
-        </span>
-    );
-  }
-}
+  return (
+    <span id="owner_editor">
+      <div className="loader" style={!loading ? { display: 'none' } : {}}></div>
+      <h2>{owner.isNew ? 'Add Owner' : 'Update Owner'}</h2>
+      <form className="form-horizontal" method="POST" action={url(owner.isNew ? 'api/owners' : 'api/owners/' + owner.id)}>
+        <div className="form-group has-feedback">
+          <Input object={owner} error={error as IError} constraint={NotEmpty} label="First Name" name="firstName" onChange={onInputChange} disabled={loading} />
+          <Input object={owner} error={error as IError} constraint={NotEmpty} label="Last Name" name="lastName" onChange={onInputChange} disabled={loading} />
+          <Input object={owner} error={error as IError} constraint={NotEmpty} label="Zip Code" name="zipCode" onChange={onInputChange} onBlur={onZipChange} disabled={loading} />
+          <SelectInput object={owner} error={error} size={1} label="State" name="state" options={states} onChange={onStateChange} disabled={loading || states.length === 1} />
+          <SelectInput object={owner} error={error} size={1} label="City" name="city" options={cities} onChange={onCityChange} disabled={loading || cities.length === 1} />
+          <AutocompleteInput value={owner.address} label="Address" name="address" onFetch={onAddressFetch} onChange={onAddressChange} disabled={loading} />
+          <Input object={owner} error={error as IError} constraint={Digits(10)} label="Telephone" name="telephone" onChange={onInputChange} disabled={loading} />
+        </div>
+        <div className="form-group">
+          <div className="col-sm-offset-2 col-sm-10">
+            <button className="btn btn-default" type="submit" onClick={onSubmit}>
+              {owner.isNew ? 'Add Owner' : 'Update Owner'}
+            </button>
+          </div>
+        </div>
+      </form>
+    </span>
+  );
+};
+
+export default OwnerEditor;

@@ -1,112 +1,90 @@
-require('jest');
-import * as React from 'react';
-import { shallow } from 'enzyme';
 
-import { NotEmpty } from '../../../../src/components/form/Constraints';
-import FieldFeedbackPanel from '../../../../src/components/form/FieldFeedbackPanel';
-import { IInputChangeHandler, IError, IConstraint } from '../../../../src/types/index';
+import { describe, it, expect, vi } from 'vitest';
+import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
 
+import { IConstraint, IError } from '../../../../src/types/index';
 import Input from '../../../../src/components/form/Input';
 
 describe('Input', () => {
-
-  const onChange = (name, value, error) => {
-    onChangeResult = { name, value, error };
-  };
-
-  let object = null;
-  let onChangeResult = null;
-
-  beforeEach(() => {
-    object = {
-      myField: 'blabla'
-    };
-
-    onChangeResult = null;
-  });
-
   it('should render correctly without field error', () => {
-    const error = {
-      fieldErrors: {}
-    };
+    const error: IError = { fieldErrors: {} as any };
+    const object = { myField: 'blabla' };
+    const onChange = vi.fn();
 
-    const input = shallow(<Input object={object}
-      label='My Field'
-      name='myField'
-      error={error}
-      onChange={onChange}
-      />);
+    const { container } = render(
+      <Input object={object} label="My Field" name="myField" error={error} onChange={onChange} />
+    );
 
-    // Make sure label is rendered correctly
-    expect(input.find('.control-label').text()).toBe('My Field');
+    // Label renderizada
+    expect(screen.getByText('My Field')).toBeInTheDocument();
 
-    // Make sure input field's value is correct
-    expect(input.find('input').props().value).toBe('blabla');
+    // Valor inicial do input (Input usa defaultValue)
+    const input = container.querySelector('input[name="myField"]') as HTMLInputElement;
+    expect(input.value).toBe('blabla');
 
-    // we don't have any errors
-    expect(input.find('.has-error').length).toBe(0);
-    expect(input.find(FieldFeedbackPanel).props().valid).toBe(true);
+    // Sem erro
+    expect(container.querySelector('.has-error')).toBeNull();
 
-    // change to new value
-    input.find('input').simulate('change', { target: { value: 'My new value' } });
+    // Change para novo valor
+    fireEvent.change(input, { target: { value: 'My new value' } }); // fireEvent.change é o atalho para eventos de input. [12](https://testing-library.com/docs/dom-testing-library/api-events/)
 
-    // make sure callback is called
-    expect(onChangeResult).toBeTruthy();
-    expect(onChangeResult.name).toBe('myField');
-    expect(onChangeResult.value).toBe('My new value');
-    expect(onChangeResult.error).toBeFalsy();
+    // Callback chamado
+    expect(onChange).toHaveBeenCalled();
+    expect(onChange.mock.calls[0][0]).toBe('myField');        // name
+    expect(onChange.mock.calls[0][1]).toBe('My new value');    // value
+    expect(onChange.mock.calls[0][2]).toBeFalsy();             // error (sem constraint)
   });
 
   it('should render correctly with field error', () => {
-
-    const error = {
+    const error: IError = {
       fieldErrors: {
-        myField: {
-          field: 'myField',
-          message: 'There was an error'
-        }
+        myField: { field: 'myField', message: 'There was an error' }
       }
-    };
+    } as any;
 
-    const input = shallow(<Input object={object}
-      label='My Field'
-      name='myField'
-      error={error}
-      onChange={onChange}
-      />);
+    const object = { myField: 'blabla' };
+    const onChange = vi.fn();
 
-    // Make sure label is rendered correctly
-    expect(input.find('.control-label').text()).toBe('My Field');
+    const { container } = render(
+      <Input object={object} label="My Field" name="myField" error={error} onChange={onChange} />
+    );
 
-    // Make sure input field's value is correct
-    expect(input.find('input').props().value).toBe('blabla');
+    // Label
+    expect(screen.getByText('My Field')).toBeInTheDocument();
 
-    // we don't have any errors
-    expect(input.find('.has-error').length).toBe(1);
-    expect(input.find(FieldFeedbackPanel).props().valid).toBe(false);
-    expect(input.find(FieldFeedbackPanel).props().fieldError).toBe(error.fieldErrors.myField);
+    // Valor
+    const input = container.querySelector('input[name="myField"]') as HTMLInputElement;
+    expect(input.value).toBe('blabla');
+
+    // Com erro visual
+    expect(container.querySelector('.has-error')).not.toBeNull();
+    expect(screen.getByText('There was an error')).toBeInTheDocument();
   });
 
-  it('should checked constrains on input change', () => {
-
-    const error = {
-      fieldErrors: {}
-    };
+  it('should check constraints on input change', () => {
+    const error: IError = { fieldErrors: {} as any };
+    const object = { myField: 'blabla' };
+    const onChange = vi.fn();
 
     const constraint: IConstraint = {
       message: 'Invalid',
-      validate: jest.fn()
+      validate: vi.fn(() => true)
     };
 
-    const input = shallow(<Input object={object}
-      label='My Field'
-      name='myField'
-      error={error}
-      onChange={onChange}
-      constraint={constraint as any}
-      />);
+    const { container } = render(
+      <Input
+        object={object}
+        label="My Field"
+        name="myField"
+        error={error}
+        onChange={onChange}
+        constraint={constraint}
+      />
+    );
 
-      input.find('input').simulate('change', { target: { value: 'My new value' } });
-      expect(constraint.validate).toHaveBeenCalledWith('My new value');
+    const input = container.querySelector('input[name="myField"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'My new value' } });
+    expect(constraint.validate).toHaveBeenCalledWith('My new value');
   });
 });

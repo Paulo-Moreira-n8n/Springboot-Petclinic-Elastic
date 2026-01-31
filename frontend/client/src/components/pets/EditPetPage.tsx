@@ -1,66 +1,56 @@
-import * as React from 'react';
+
+import React, { useEffect, useRef, useState } from 'react';
+import { useParams } from 'react-router-dom';
 
 import { IOwner, IEditablePet, ISelectOption } from '../../types/index';
-import { request, request_promise, xhr_request_promise } from '../../util/index';
+import { xhr_request_promise } from '../../util/index';
 import { APMService, punish } from '../../main';
 import LoadingPanel from './LoadingPanel';
 import PetEditor from './PetEditor';
-
 import createPetEditorModel from './createPetEditorModel';
 
-interface IEditPetPageProps {
-  params: {
-    ownerId: string,
-    petId: string
-  };
-}
-
-interface IEditPetPageState {
+interface IPetEditorModel {
   pet?: IEditablePet;
   owner?: IOwner;
   pettypes?: ISelectOption[];
-};
+}
 
-export default class EditPetPage extends React.Component<IEditPetPageProps, IEditPetPageState> {
+const EditPetPage: React.FC = () => {
+  const { ownerId, petId } = useParams();
+  const initialRender = useRef(true);
+  const [model, setModel] = useState<IPetEditorModel | undefined>(undefined);
 
-  initial_render: boolean;
-
-  constructor() {
-    super();
-    this.initial_render = true;
+  useEffect(() => {
     APMService.getInstance().startTransaction('EditPetPage');
     punish();
-  }
 
-  componentDidMount() {
-    const { params } = this.props;
-    const loadPetPromise = xhr_request_promise(`api/pets/${params.petId}`);
-    createPetEditorModel(this.props.params.ownerId, loadPetPromise)
-      .then(model => {
-            APMService.getInstance().startSpan('Page Render', 'react');
-            this.setState(model);
-          }
-      );
-  }
+    const load = async () => {
+      if (!ownerId || !petId) return;
+      const loadPetPromise = xhr_request_promise(`api/pets/${petId}`);
+      const m = await createPetEditorModel(ownerId, loadPetPromise);
+      APMService.getInstance().startSpan('Page Render', 'react');
+      setModel(m);
+    };
 
-  componentDidUpdate() {
-    if (this.initial_render) {
+    load();
+
+    return () => {
+      APMService.getInstance().endSpan();
+      APMService.getInstance().endTransaction(false);
+    };
+  }, [ownerId, petId]);
+
+  useEffect(() => {
+    if (initialRender.current && model) {
       APMService.getInstance().endSpan();
       APMService.getInstance().endTransaction(true);
+      initialRender.current = false;
     }
-    this.initial_render = false;
-  }
+  }, [model]);
 
-  componentWillUnmount() {
-    APMService.getInstance().endSpan();
-    APMService.getInstance().endTransaction(false);
-  }
+  if (!model) return <LoadingPanel />;
 
-  render() {
-    if (!this.state) {
-      return <LoadingPanel />;
-    }
+  return <PetEditor {...model} />;
+};
 
-    return <PetEditor {...this.state} />;
-  }
-}
+export default EditPetPage;

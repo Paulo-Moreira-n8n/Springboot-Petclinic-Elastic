@@ -13,14 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+
 package org.springframework.samples.petclinic.repository.jdbc;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import javax.sql.DataSource;
+
 import org.springframework.transaction.annotation.Transactional;
 
 import co.elastic.apm.api.CaptureSpan;
@@ -41,49 +45,29 @@ import org.springframework.samples.petclinic.repository.OwnerRepository;
 import org.springframework.samples.petclinic.util.EntityUtils;
 import org.springframework.stereotype.Repository;
 
-/**
- * A simple JDBC-based implementation of the {@link OwnerRepository} interface.
- *
- * @author Ken Krebs
- * @author Juergen Hoeller
- * @author Rob Harrop
- * @author Sam Brannen
- * @author Thomas Risberg
- * @author Mark Fisher
- * @author Antoine Rey
- * @author Vitaliy Fedoriv
- */
 @Repository
 @Profile("jdbc")
 public class JdbcOwnerRepositoryImpl implements OwnerRepository {
 
-    private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
-
-    private SimpleJdbcInsert insertOwner;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final SimpleJdbcInsert insertOwner;
 
     @Autowired
     public JdbcOwnerRepositoryImpl(DataSource dataSource) {
-
         this.insertOwner = new SimpleJdbcInsert(dataSource)
             .withTableName("owners")
             .usingGeneratedKeyColumns("id");
 
         this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
-
     }
 
-
-    /**
-     * Loads {@link Owner Owners} from the data store by last name, returning all owners whose last name <i>starts</i> with
-     * the given name; also loads the {@link Pet Pets} and {@link Visit Visits} for the corresponding owners, if not
-     * already loaded.
-     */
     @Override
     public Collection<Owner> findByLastName(String lastName) throws DataAccessException {
         Map<String, Object> params = new HashMap<>();
         params.put("lastName", lastName + "%");
         List<Owner> owners = this.namedParameterJdbcTemplate.query(
-            "SELECT id, first_name, last_name, address, city, telephone, state, zip_code FROM owners WHERE last_name like :lastName",
+            "SELECT id, first_name, last_name, address, city, telephone, state, zip_code " +
+            "FROM owners WHERE last_name LIKE :lastName",
             params,
             BeanPropertyRowMapper.newInstance(Owner.class)
         );
@@ -91,45 +75,62 @@ public class JdbcOwnerRepositoryImpl implements OwnerRepository {
         return owners;
     }
 
-    /**
-     * Loads the {@link Owner} with the supplied <code>id</code>; also loads the {@link Pet Pets} and {@link Visit Visits}
-     * for the corresponding owner, if not already loaded.
-     */
     @Override
     public Owner findById(int id) throws DataAccessException {
-        Owner owner;
         try {
             Map<String, Object> params = new HashMap<>();
             params.put("id", id);
-            owner = this.namedParameterJdbcTemplate.queryForObject(
-                "SELECT id, first_name, last_name, address, city, telephone, state, zip_code FROM owners WHERE id= :id",
+            Owner owner = this.namedParameterJdbcTemplate.queryForObject(
+                "SELECT id, first_name, last_name, address, city, telephone, state, zip_code " +
+                "FROM owners WHERE id = :id",
                 params,
                 BeanPropertyRowMapper.newInstance(Owner.class)
             );
+            loadPetsAndVisits(owner);
+            return owner;
         } catch (EmptyResultDataAccessException ex) {
             throw new ObjectRetrievalFailureException(Owner.class, id);
         }
-        loadPetsAndVisits(owner);
-        return owner;
     }
 
-    public void loadPetsAndVisits(final Owner owner) {
+    /**
+     * Carrega pets e visitas de um Owner.
+     * Consulta pets primeiro e, para cada pet, carrega as visitas em uma segunda query.
+     */
+    public void loadPetsAndVisits(final Owner owner) throws DataAccessException {
+        if (owner == null || owner.getId() == null) {
+            return;
+        }
+
         Map<String, Object> params = new HashMap<>();
-        params.put("id", owner.getId());
+        params.put("ownerId", owner.getId());
+
+        // 1) Pets do Owner
         final List<JdbcPet> pets = this.namedParameterJdbcTemplate.query(
-            "SELECT pets.id as pets_id, name, birth_date, type_id, owner_id, visits.id as visit_id, visit_date, description, visits.pet_id as visits_pet_id FROM pets LEFT OUTER JOIN visits ON pets.id = visits.pet_id WHERE owner_id=:id ORDER BY pets.id",
+            "SELECT p.id AS pets_id, p.name, p.birth_date, p.type_id, p.owner_id " +
+            "FROM pets p WHERE p.owner_id = :ownerId ORDER BY p.id",
             params,
             new JdbcPetRowMapper()
         );
+
+        // Tipos de Pet para mapear type_id -> PetType
         Collection<PetType> petTypes = getPetTypes();
+
         for (JdbcPet pet : pets) {
-            try {
-                pet.addVisit(new JdbcVisitRowMapper().mapRow(null, 0)); // Placeholder for visit mapping
-            } catch (java.sql.SQLException e) {
-                // Handle or log the exception as needed
-            }
+            // Seta o PetType do pet
             pet.setType(EntityUtils.getById(petTypes, PetType.class, pet.getTypeId()));
             owner.addPet(pet);
+
+            // 2) Visitas do pet
+            Map<String, Object> vParams = Collections.singletonMap("petId", pet.getId());
+            List<Visit> visits = this.namedParameterJdbcTemplate.query(
+                "SELECT id, visit_date, description, pet_id FROM visits WHERE pet_id = :petId ORDER BY visit_date",
+                vParams,
+                new JdbcVisitRowMapper()
+            );
+            for (Visit v : visits) {
+                pet.addVisit(v);
+            }
         }
     }
 
@@ -144,61 +145,65 @@ public class JdbcOwnerRepositoryImpl implements OwnerRepository {
             this.namedParameterJdbcTemplate.update(
                 "UPDATE owners SET first_name=:firstName, last_name=:lastName, address=:address, " +
                     "city=:city, telephone=:telephone, state=:state, zip_code=:zipCode WHERE id=:id",
-                parameterSource);
+                parameterSource
+            );
         }
     }
 
     public Collection<PetType> getPetTypes() throws DataAccessException {
         return this.namedParameterJdbcTemplate.query(
-            "SELECT id, name FROM types ORDER BY name", new HashMap<String, Object>(),
-            BeanPropertyRowMapper.newInstance(PetType.class));
+            "SELECT id, name FROM types ORDER BY name",
+            Collections.emptyMap(),
+            BeanPropertyRowMapper.newInstance(PetType.class)
+        );
     }
 
-    /**
-     * Loads the {@link Pet} and {@link Visit} data for the supplied {@link List} of {@link Owner Owners}.
-     *
-     * @param owners the list of owners for whom the pet and visit data should be loaded
-     * @see #loadPetsAndVisits(Owner)
-     */
-    private void loadOwnersPetsAndVisits(List<Owner> owners) {
+    private void loadOwnersPetsAndVisits(List<Owner> owners) throws DataAccessException {
         for (Owner owner : owners) {
             loadPetsAndVisits(owner);
         }
     }
-    
-	@Override
-	public Collection<Owner> findAll() throws DataAccessException {
-		List<Owner> owners = this.namedParameterJdbcTemplate.query(
-	            "SELECT id, first_name, last_name, address, city, telephone, state, zip_code FROM owners",
-	            new HashMap<String, Object>(),
-	            BeanPropertyRowMapper.newInstance(Owner.class));
-		for (Owner owner : owners) {
+
+    @Override
+    public Collection<Owner> findAll() throws DataAccessException {
+        List<Owner> owners = this.namedParameterJdbcTemplate.query(
+            "SELECT id, first_name, last_name, address, city, telephone, state, zip_code FROM owners",
+            Collections.emptyMap(),
+            BeanPropertyRowMapper.newInstance(Owner.class)
+        );
+        for (Owner owner : owners) {
             loadPetsAndVisits(owner);
         }
-	    return owners;
-	}
+        return owners;
+    }
 
-	@Override
-	@Transactional
-	public void delete(Owner owner) throws DataAccessException {
-		Map<String, Object> owner_params = new HashMap<>();
-		owner_params.put("id", owner.getId());
-        List<Pet> pets = owner.getPets();
-        // cascade delete pets
-        for (Pet pet : pets){
-        	Map<String, Object> pet_params = new HashMap<>();
-        	pet_params.put("id", pet.getId());
-        	// cascade delete visits
-        	List<Visit> visits = pet.getVisits();
-            for (Visit visit : visits){
-            	Map<String, Object> visit_params = new HashMap<>();
-            	visit_params.put("id", visit.getId());
-            	this.namedParameterJdbcTemplate.update("DELETE FROM visits WHERE id=:id", visit_params);
-            }
-            this.namedParameterJdbcTemplate.update("DELETE FROM pets WHERE id=:id", pet_params);
+    @Override
+    @Transactional
+    public void delete(Owner owner) throws DataAccessException {
+        if (owner == null || owner.getId() == null) return;
+
+        Map<String, Object> ownerParams = new HashMap<>();
+        ownerParams.put("id", owner.getId());
+
+        // Carrega pets para deletar em cascata
+        Map<String, Object> params = new HashMap<>();
+        params.put("ownerId", owner.getId());
+        final List<Pet> pets = this.namedParameterJdbcTemplate.query(
+            "SELECT id, name, birth_date, type_id, owner_id FROM pets WHERE owner_id = :ownerId",
+            params,
+            new BeanPropertyRowMapper<>(Pet.class)
+        );
+
+        for (Pet pet : pets) {
+            Map<String, Object> petParams = Collections.singletonMap("id", pet.getId());
+
+            // Apaga visitas do pet
+            this.namedParameterJdbcTemplate.update("DELETE FROM visits WHERE pet_id = :id", petParams);
+            // Apaga o pet
+            this.namedParameterJdbcTemplate.update("DELETE FROM pets WHERE id = :id", petParams);
         }
-        this.namedParameterJdbcTemplate.update("DELETE FROM owners WHERE id=:id", owner_params);
-	}
 
-
+        // Por fim, apaga o owner
+        this.namedParameterJdbcTemplate.update("DELETE FROM owners WHERE id = :id", ownerParams);
+    }
 }
