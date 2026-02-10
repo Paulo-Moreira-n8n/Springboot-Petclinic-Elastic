@@ -2,7 +2,7 @@ const path = require('path');
 const webpack = require('webpack');
 var HtmlWebpackPlugin = require('html-webpack-plugin');
 const port = process.env.PORT || 3000;
-const api_server_url = process.env.API_SERVER_URL || 'http://localhost:4000';
+const api_server_url = process.env.API_SERVER_URL || 'http://localhost:3000';
 
 const entries = [
   'webpack-dev-server/client?http://localhost:' + port,

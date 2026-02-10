@@ -1,4 +1,4 @@
-
+// FindOwnersPage.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
@@ -22,7 +22,7 @@ const FindOwnersPage: React.FC = () => {
 
   const fetchData = useCallback((f: string | null) => {
     const query = f ? encodeURIComponent(f) : '';
-    const requestUrl = f && query !== '*' ? `api/owners/*/lastname/${query}` : 'api/owners';
+    const requestUrl = f && query !== '*' ? `api/owners/lastname/${query}` : 'api/owners';
 
     xhr_request(requestUrl, (status, data) => {
       if (status < 400) {

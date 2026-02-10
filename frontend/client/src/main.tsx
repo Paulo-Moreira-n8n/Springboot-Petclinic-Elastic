@@ -15,6 +15,7 @@ import { url } from './util/index';
 export class APMService {
   private static instance: APMService;
   private apm: any;
+  private current_transaction: any; // ✅ NOVO
   private current_span: any;
   private span_open = false;
   private ready = false;
@@ -83,50 +84,85 @@ export class APMService {
 
   startTransaction(name: string) {
     if (this.ready && !this.open) {
-      console.log('Starting transaction - ' + name + ':');
-      if (this.apm.getCurrentTransaction()) {
-        this.apm.getCurrentTransaction().end();
+      try {
+        console.log('Starting transaction - ' + name + ':');
+
+        const current = this.apm?.getCurrentTransaction?.();
+        if (current?.end) current.end();
+
+        const tx = this.apm?.startTransaction?.(name, 'Events');
+
+        // ✅ Só marca open se tx existir
+        if (tx) {
+          this.current_transaction = tx;
+          this.apm?.addLabels?.('success_load', false);
+          this.open = true;
+        } else {
+          this.current_transaction = null;
+          this.open = false;
+        }
+      } catch (e) {
+        console.warn('[APM] startTransaction failed', e);
+        this.current_transaction = null;
+        this.open = false;
       }
-      const transaction = this.apm.startTransaction(name, 'Events');
-      this.apm.addLabels('success_load', false);
-      console.log(transaction);
-      this.open = true;
     }
   }
 
   endTransaction(completed: boolean) {
     if (this.open) {
       this.open = false;
-      this.apm.addLabels('success_load', completed.toString());
-      console.log('Closing transaction');
-      const transaction = this.apm.getCurrentTransaction();
-      if (transaction) {
-        transaction.end();
-        console.log('Closed transaction:');
+      try {
+        this.apm?.addLabels?.('success_load', completed.toString());
+        console.log('Closing transaction');
+
+        const tx = this.current_transaction ?? this.apm?.getCurrentTransaction?.();
+        tx?.end?.();
+      } catch (e) {
+        console.warn('[APM] endTransaction failed', e);
+      } finally {
+        this.current_transaction = null;
       }
-      console.log(transaction);
     }
   }
 
   startSpan(name: string, type: string) {
     if (this.ready && this.open) {
-      const transaction = this.apm.getCurrentTransaction();
-      this.span_open = true;
-      this.current_span = transaction.startSpan(name, type);
+      try {
+        // ✅ Usa a transação guardada, com fallback no getCurrentTransaction
+        const tx = this.current_transaction ?? this.apm?.getCurrentTransaction?.();
+
+        // ✅ Se não houver transação ativa, não faz nada (sem crash)
+        if (!tx || typeof tx.startSpan !== 'function') return;
+
+        this.span_open = true;
+        this.current_span = tx.startSpan(name, type) ?? null;
+      } catch (e) {
+        console.warn('[APM] startSpan failed', e);
+        this.current_span = null;
+        this.span_open = false;
+      }
     }
   }
 
   endSpan() {
     if (this.open && this.span_open) {
-      this.current_span.end();
-      this.span_open = false;
+      try {
+        this.current_span?.end?.();
+      } catch (e) {
+        console.warn('[APM] endSpan failed', e);
+      } finally {
+        this.current_span = null;
+        this.span_open = false;
+      }
     }
   }
 
   captureError(message: string) {
-    if (this.open) {
-      console.log('Capturing Error');
-      this.apm.captureError(new Error(message));
+    try {
+      this.apm?.captureError?.(new Error(message));
+    } catch (e) {
+      console.warn('[APM] captureError failed', e);
     }
   }
 }

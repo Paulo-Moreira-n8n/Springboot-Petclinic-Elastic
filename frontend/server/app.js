@@ -13,6 +13,9 @@ const apm = require('elastic-apm-node');
 const proxy = require('express-http-proxy');
 const app = express();
 
+// Problema no botão Find Owner
+app.set('etag', false);
+
 // Respeitar cabeçalhos x-forwarded-* quando atrás de proxy/reverso
 app.set('trust proxy', true); // Express recomenda ajustar quando há proxy. [16](https://expressjs.com/en/guide/behind-proxies.html)
 
@@ -20,7 +23,7 @@ app.set('trust proxy', true); // Express recomenda ajustar quando há proxy. [16
 app.use(favicon(path.join(__dirname, 'public', 'images', 'favicon.png'))); // [10](https://www.npmjs.com/package/serve-favicon)
 
 // Segurança e performance
-app.use(helmet()); // Helmet v8 (Node 18+) [8](https://github.com/helmetjs/helmet/blob/main/CHANGELOG.md)
+app.use(helmet({contentSecurityPolicy: false})); // Helmet v8 (Node 18+) [8](https://github.com/helmetjs/helmet/blob/main/CHANGELOG.md)
 app.use(compression());
 
 // Logs
@@ -169,13 +172,39 @@ app.use('/api/find_address', proxy(settings.address_server, {
 // Proxy geral para /api -> API backend com prefixo
 app.use('/api', proxy(settings.api_server, {
   preserveHostHdr: true,
+
   proxyReqPathResolver: (req) => {
     apm.setTransactionName('/api/' + req.url.split('/').filter(Boolean)[0]);
     const [username, email] = getUserDetails(req);
     apm.setUserContext({ username, email });
     return settings.api_prefix + req.url;
   },
-  userResDecorator: (proxyRes, proxyResData, userReq) => {
+
+  // ✅ Remove headers que levam a 304
+  proxyReqOptDecorator: (proxyReqOpts, srcReq) => {
+    proxyReqOpts.headers = proxyReqOpts.headers || {};
+
+    delete proxyReqOpts.headers['if-none-match'];
+    delete proxyReqOpts.headers['if-modified-since'];
+
+    // opcional: reforçar que não queremos cache
+    proxyReqOpts.headers['cache-control'] = 'no-cache';
+    proxyReqOpts.headers['pragma'] = 'no-cache';
+
+    return proxyReqOpts;
+  },
+
+  userResDecorator: (proxyRes, proxyResData, userReq, userRes) => {
+    // ✅ Força no-store no response para o browser não cachear JSON
+    userRes.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    userRes.setHeader('Pragma', 'no-cache');
+    userRes.setHeader('Expires', '0');
+    userRes.setHeader('Surrogate-Control', 'no-store');
+
+    // opcional: se vier ETag do backend, removemos pra evitar cache condicional
+    userRes.removeHeader?.('ETag'); // Node 20+ ok; se não existir, ignore
+    userRes.removeHeader?.('Last-Modified');
+
     if (proxyRes.statusCode >= 400) {
       const err = getError(proxyRes, proxyResData);
       apm.captureError(err, {
@@ -187,6 +216,7 @@ app.use('/api', proxy(settings.api_server, {
     return proxyResData;
   }
 }));
+
 
 // SPA fallback: entrega index.html do /public
 app.get('*', function (req, res) {

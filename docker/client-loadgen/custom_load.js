@@ -70,7 +70,7 @@ async function navigate(page, currentUrl, baseUrl) {
           const randomLink = links[Math.floor(Math.random() * links.length)];
           const href = await page.evaluate(el => el.href, randomLink);
           await randomLink.click();
-          next url = href;
+          nextUrl = href;
         } else {
           nextUrl = baseUrl;
         }

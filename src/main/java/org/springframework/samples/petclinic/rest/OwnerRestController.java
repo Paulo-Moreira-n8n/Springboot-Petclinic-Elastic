@@ -64,7 +64,7 @@ public class OwnerRestController {
     }
 
     // Busca por id
-    @GetMapping(value = "/{ownerId}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(value = "/{ownerId:-?[0-9]+}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Owner> getOwner(@PathVariable("ownerId") int ownerId) {
         Owner owner = this.clinicService.findOwnerById(ownerId);
         if (owner == null) {
@@ -93,7 +93,7 @@ public class OwnerRestController {
 
     // Atualização
     @CaptureSpan(value = "updateOwner")
-    @PutMapping(value = "/{ownerId}", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PutMapping(value = "/{ownerId:-?[0-9]+}", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Owner> updateOwner(@PathVariable("ownerId") int ownerId,
                                              @RequestBody @Valid Owner owner,
                                              BindingResult bindingResult,
@@ -122,7 +122,7 @@ public class OwnerRestController {
     }
 
     // Exclusão
-    @DeleteMapping(value = "/{ownerId}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @DeleteMapping(value = "/{ownerId:-?[0-9]+}", produces = MediaType.APPLICATION_JSON_VALUE)
     @Transactional
     public ResponseEntity<Void> deleteOwner(@PathVariable("ownerId") int ownerId) {
         Owner owner = this.clinicService.findOwnerById(ownerId);

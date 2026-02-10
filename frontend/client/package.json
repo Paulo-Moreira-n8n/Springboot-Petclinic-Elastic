@@ -1,7 +1,7 @@
 {
-  "name": "spring-petclinic-reactjs",
+  "name": "spring-petclinic-client",
   "version": "0.0.2",
-  "description": "Spring Petclinic React frontend (migrated to React 19 + Vite)",
+  "description": "Elastic Spring Petclinic frontend (migrated to React 19 + Vite)",
   "main": "index.js",
   "repository": "https://github.com/elastic/spring-petclinic",
   "author": "Nils Hartmann",
@@ -33,7 +33,6 @@
     "react-datepicker": "^4.24.0",
     "whatwg-fetch": "^3.6.20"
   },
-
   "devDependencies": {
     "vite": "^7.3.0",
     "@vitejs/plugin-react-swc": "^4.2.2",

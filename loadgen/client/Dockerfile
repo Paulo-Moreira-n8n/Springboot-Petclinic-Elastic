@@ -1,4 +1,9 @@
-FROM node:8
+# docker run -it --rm -p 9222:9222 --network petclinic-stack_spring-petclinic-net --name spring-client-loadgen -v "$(pwd):/home/chrome" -w /home/chrome node bash
+# cp zscalerrootca.crt /usr/local/share/ca-certificates/ && update-ca-certificates
+
+
+
+FROM node
 
 RUN apt-get update && apt-get install -y \
 	apt-transport-https \
@@ -19,7 +24,7 @@ RUN groupadd -r chrome && useradd -r -g chrome -G audio,video chrome \
 
 WORKDIR /home/chrome
 
-# Run Chrome non-privileged
+# Run Chrome non-privileged - su chrome
 USER chrome
 
 # Expose port 9222
@@ -29,9 +34,11 @@ COPY package*.json /home/chrome/
 
 RUN npm install
 
-ENV CHROME_PATH=/usr/bin/chromium-browser
+ENV CHROME_PATH=/usr/bin/google-chrome-stable
 
 COPY tasks.js /home/chrome/
 COPY processes.config.js /home/chrome/
 
 CMD ["node_modules/.bin/pm2-docker", "processes.config.js"]
+
+# ./node_modules/.bin/pm2-docker processes.config.js

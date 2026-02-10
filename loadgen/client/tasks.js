@@ -1,11 +1,19 @@
 const { Chromeless } = require('chromeless')
 
-var baseUrl = process.env.PETCLINIC_BASE_URL || 'http://www.opbeans.com';
+var baseUrl = process.env.PETCLINIC_BASE_URL || 'http://spring-petclinic-client:3000';
 var url = baseUrl
 var NUM_IPS = 1000;
 var RANDOM_IPS = loadRandomIPs();
 
-const chromeless = new Chromeless({ launchChrome: true,  waitTimeout: 30000 });
+// const chromeless = new Chromeless({ launchChrome: true,  waitTimeout: 30000 });
+
+const chromeless = new Chromeless({
+  launchChrome: false,
+  remote: {
+    endpointUrl: 'http://127.0.0.1:9222'
+  },
+  waitTimeout: 30000
+});
 
 
 function sleep(ms){

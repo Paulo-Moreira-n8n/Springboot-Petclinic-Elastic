@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-
-
 package org.springframework.samples.petclinic.rest;
 
 import static org.mockito.BDDMockito.given;

@@ -3,28 +3,16 @@
 # docker run -it -p 8000:8000 -v "$(pwd):/usr/src/spring-petclinic" -w /usr/src/spring-petclinic eclipse-temurin bash
 
 # docker build -t spring-petclinic-server -f Dockerfile .
-# docker run -p 8000:8000 --network docker-elk_elk --name spring-petclinic-server
-# --network docker-elk_elk `
-# -e ELASTIC_APM_SERVER_URL=http://apm-server:8200 `
-# -e ELASTIC_APM_SPAN_FRAMES_MIN_DURATION=-1 `
-# -e ELASTIC_APM_CAPTURE_BODY=all `
+
+docker run -it --rm -p 8000:8000 -v "$(pwd):/app" -w /app `
+--network petclinic-stack_spring-petclinic-net `
+--name spring-petclinic-server `
+-e ELASTIC_APM_SERVER_URL=http://apm-server:8200 `
+-e ELASTIC_APM_SERVICE_NAME=petclinic-server-service `
+-e ELASTIC_APM_HOSTNAME=petclinic-server-host `
+maven:3.9.6-eclipse-temurin-21-alpine bash
+
 # -e SERVER_PORT=8000 `
-# -e ELASTIC_APM_SERVICE_NAME=spring-petclinic-server
-# spring-petclinic-server
-
-
-
-
-
-# docker run -it -p 8000:8000 --name gera-aplicacao-2 -v "$(pwd):/usr/src/spring-petclinic" -w /usr/src/spring-petclinic `
-# --network docker-elk_elk `
-# -e ELASTIC_APM_SERVER_URL=http://apm-server:8200 `
-# -e ELASTIC_APM_SPAN_FRAMES_MIN_DURATION=-1 `
-# -e ELASTIC_APM_CAPTURE_BODY=all `
-# -e SERVER_PORT=8000 `
-# -e ELASTIC_APM_SERVICE_NAME=spring-petclinic-server
-# maven:3.5.3-jdk-10 bash
-
 # -e JAVA_PROFILE=mysql,spring-data-jpa `
 # -e DATABASE_URL=jdbc:mysql://mysql:3306/petclinic?useUnicode=true `
 # -e DATABASE_USERNAME=root `
@@ -38,68 +26,56 @@
 
 
 
-# access petclinic: http://localhost:9966/petclinic/
-# actuator health check: http://localhost:9966/petclinic/actuator/health
-# Swagger UI: http://localhost:9966/petclinic/swagger-ui.html.
-# API documentation (OAS 3.1) is accessible at: http://localhost:9966/petclinic/v3/api-docs.
+# access Swagger petclinic: http://localhost:8000/petclinic/
+# Swagger UI: http://localhost:8000/petclinic/swagger-ui.html.
+# API documentation (OAS 3.1) is accessible at: http://localhost:8000/petclinic/v3/api-docs.
+
+#| Ação             | Comando                                                              |
+#| ---------------- | -------------------------------------------------------------------- |
+#| Todos os testes  | `./mvnw clean test`                                                  |
+#| Testes REST      | `./mvnw -Dtest="*Rest*" test`                                        |
+#| Teste por classe | `./mvnw -Dtest=OwnerRestControllerTests test`                        |
+#| Teste por método | `./mvnw -Dtest=Classe#metodo test`                                   |
+#| Logs debug       | `./mvnw test -Dlogging.level.root=DEBUG`                             |
+#| Perfil JPA       | `./mvnw test -Dspring.profiles.active=hsqldb,jpa,security-disabled`  |
+#| Perfil JDBC      | `./mvnw test -Dspring.profiles.active=hsqldb,jdbc,security-disabled` |
+#| Cobertura Jacoco | `./mvnw clean test jacoco:report`                                    |
+
+
+
 
 #Multi-Stage build
 
-#Build application stage
-#We need maven.
-FROM maven:3.5.3-jdk-10
-ARG JAVA_AGENT_BRANCH=1.x
-ARG JAVA_AGENT_REPO=elastic/apm-agent-java
+FROM maven:3.9.6-eclipse-temurin-21-alpine
 
 # Instala o certificado do zscaler para não dar erro de tls/ssl
 COPY zscalerrootca.crt /usr/local/share/ca-certificates/
-# cp zscalerrootca.crt /usr/local/share/ca-certificates/
 RUN update-ca-certificates
 
-#WORKDIR /usr/src
-#build the application
-#RUN git clone https://github.com/elastic/spring-petclinic.git
-WORKDIR /usr/src/spring-petclinic
-COPY pom.xml .travis.yml mvnw ./
-# cp pom.xml .travis.yml mvnw ./
-COPY src/ .
+# cp zscalerrootca.crt /usr/local/share/ca-certificates/ && update-ca-certificates
 
+
+# build the application
+WORKDIR /app
+COPY pom.xml .travis.yml mvnw ./
+COPY src/ .
 
 # RUN mvn -q -B package -DskipTests
 RUN mvn package
 
-RUN mkdir /usr/src/java-app
-RUN cp -v /usr/src/spring-petclinic/target/*.jar /usr/src/java-app/app.jar
-
-#build the agent
-#WORKDIR /usr/src/java-agent-code
-#RUN curl -k -L https://github.com/$JAVA_AGENT_REPO/archive/$JAVA_AGENT_BRANCH.tar.gz | tar --strip-components=1 -xz
-
-RUN mvn -q -B package -DskipTests
-
-# baixa o agente java elastic-apm-agent
-
-# Baixa o agente APM Java (release oficial) em vez de compilar do fonte
-# RUN curl -fSL "https://repo1.maven.org/maven2/co/elastic/apm/elastic-apm-agent/1.55.2/elastic-apm-agent-1.55.2.jar" -o /usr/src/java-app/elastic-apm-agent.jar
-
-
-#RUN export JAVA_AGENT_BUILT_VERSION=$(mvn -q -Dexec.executable="echo" -Dexec.args='${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec) \
-#    && cp -v /usr/src/java-agent-code/elastic-apm-agent/target/elastic-apm-agent-${JAVA_AGENT_BUILT_VERSION}.jar /usr/src/java-app/elastic-apm-agent.jar
-
+RUN cp -v /app/target/*.jar /app/app.jar
 
 FROM eclipse-temurin
-
-RUN export
-WORKDIR /app
 
 # Baixa o agente APM Java (release oficial) em vez de compilar do fonte
 
 RUN apt-get update && apt-get install -y curl
 RUN curl -k -fSL "https://repo1.maven.org/maven2/co/elastic/apm/elastic-apm-agent/1.55.2/elastic-apm-agent-1.55.2.jar" -o /app/elastic-apm-agent.jar
-# Baixe diretamente o JAR
-# RUN wget https://repo1.maven.org/maven2/co/elastic/apm/elastic-apm-agent/1.47.0/elastic-apm-agent-1.47.0.jar
 
 COPY --from=0 /usr/src/java-app/*.jar ./
+
+java -jar app.jar
+
 
 CMD java -javaagent:/app/elastic-apm-agent.jar\
                                         -Dspring.profiles.active=${JAVA_PROFILE:-hsqldb,spring-data-jpa}\

@@ -1,3 +1,6 @@
+# docker run -it --rm -p 9222:9222 --network petclinic-stack_spring-petclinic-net --name spring-client-loadgen -v "$(pwd):/home/chrome" -w /home/chrome node bash
+# cp zscalerrootca.crt /usr/local/share/ca-certificates/ && update-ca-certificates
+
 # docker build -t z_petclient-loadgen -f Dockerfile .
 
 # docker run --shm-size=1g -e PETCLINIC_BASE_URL=http://spring-petclinic-client:3000 z_petclient-loadgen

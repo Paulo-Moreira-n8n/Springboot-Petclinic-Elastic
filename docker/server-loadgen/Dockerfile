@@ -1,15 +1,20 @@
+# docker build -t spring-server-loadgen .
+# docker run -it --rm --network petclinic-stack_spring-petclinic-net --name spring-server-loadgen spring-server-loadgen bash
+# docker run -it --rm --network petclinic-stack_spring-petclinic-net --name spring-server-loadgen -v "$(pwd):/app" -w /app eclipse-temurin bash
+# cp zscalerrootca.crt /usr/local/share/ca-certificates/ && update-ca-certificates
+
 FROM eclipse-temurin
 
-# Instalar curl e 
+# Instalar curl e dos2unix
 RUN apt-get update && apt-get install -y curl && apt-get install -y dos2unix
 
 LABEL maintainer=dalem@elastic.co
 
 ARG JMETER_VERSION="5.0"
 
-ENV JMETER_HOME /opt/apache-jmeter-${JMETER_VERSION}
-ENV	JMETER_BIN	${JMETER_HOME}/bin
-ENV	JMETER_DOWNLOAD_URL https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-${JMETER_VERSION}.tgz
+ENV JMETER_HOME=/opt/apache-jmeter-${JMETER_VERSION}
+ENV	JMETER_BIN=${JMETER_HOME}/bin
+ENV	JMETER_DOWNLOAD_URL=https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-${JMETER_VERSION}.tgz
 
 RUN mkdir -p /tmp/dependencies \
         && curl -k -L --silent ${JMETER_DOWNLOAD_URL} >  /tmp/dependencies/apache-jmeter-${JMETER_VERSION}.tgz \
@@ -17,7 +22,7 @@ RUN mkdir -p /tmp/dependencies \
         && tar -xzf /tmp/dependencies/apache-jmeter-${JMETER_VERSION}.tgz -C /opt \
         && rm -rf /tmp/dependencies
 
-ENV PATH $PATH:$JMETER_BIN
+ENV PATH=$PATH:$JMETER_BIN
 COPY jmeter-petclinic-server.jmx ${JMETER_HOME}
 RUN mkdir /opt/data_files
 COPY *.csv /opt/data_files/
@@ -28,3 +33,5 @@ RUN dos2unix entrypoint.sh
 WORKDIR	${JMETER_HOME}
 
 ENTRYPOINT ["/bin/bash", "/entrypoint.sh"]
+
+# /bin/bash /entrypoint.sh

@@ -37,7 +37,7 @@ Other versions of the Elasticstack may work. Currently, only version 6.4.2 has b
 	./mvnw spring-boot:run
 ```
 
-You can then access petclinic here: http://localhost:9966/petclinic/
+You can then access petclinic here: http://localhost:8000/petclinic/
 
 
 ## Understanding the Spring Petclinic application with a few diagrams
@@ -45,7 +45,7 @@ You can then access petclinic here: http://localhost:9966/petclinic/
 
 
 ## Swagger REST API documentation presented here (after application start):
-<a href="http://localhost:8080/petclinic/swagger-ui.html">http://localhost:9966/petclinic/swagger-ui.html</a>
+<a href="http://localhost:8000/petclinic/swagger-ui.html">http://localhost:8000/petclinic/swagger-ui.html</a>
 
 
 ## Development - Database configuration

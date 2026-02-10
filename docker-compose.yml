@@ -179,20 +179,9 @@ services:
       ELASTIC_APM_SERVER_URL: http://apm-server:${APM_SERVER_PORT:-8200}
       ELASTIC_APM_SPAN_FRAMES_MIN_DURATION: -1
       ELASTIC_APM_CAPTURE_BODY: all
-      SERVER_PORT: ${SERVER_PORT:-8000}
-      JAVA_PROFILE: mysql,jdbc
-      SPRING_PROFILES_ACTIVE: mysql,jdbc
-      MYSQL_URL: jdbc:mysql://mysql:3306/petclinic?useUnicode=true
-      MYSQL_USER: petclinic
-      MYSQL_PASS: petclinic
-      DATASOURCE_DATA: classpath*:db/mysql/populateDB.sql
-      INITIALIZE_DB: "true"
+#      SPRING_PROFILES_ACTIVE: mysql,jdbc
       ELASTIC_APM_SERVICE_NAME: petclinic-server-service
       ELASTIC_APM_HOSTNAME: petclinic-server-host
-      DATABASE_DRIVER: com.mysql.jdbc.Driver
-      DATABASE_DIALECT: MYSQL
-      DATABASE_PLATFORM: org.hibernate.dialect.MySQLDialect
-      DATASOURCE_SCHEMA: classpath*:db/mysql/initDB.sql
     depends_on:
       - elasticsearch
       - apm-server
@@ -215,28 +204,31 @@ services:
           - spring-petclinic-client
     ports:
 #      - "127.0.0.1:${CLIENT_SERVER_PORT:-4000}:4000"
-      - "3000:4000"
+      - "3000:3000"
     logging:
       driver: 'json-file'
       options:
         max-size: '2m'
         max-file: '5'
-    environment:
-      ELASTIC_APM_SERVER_URL: http://apm-server:${APM_SERVER_PORT:-8200}
-      ELASTIC_APM_SERVER_JS_URL: http://localhost:8200
-      ELASTIC_APM_SERVICE_VERSION: 1.0.0
-      ELASTIC_APM_SERVICE_NAME: petclinic-client-service
-      ELASTIC_APM_HOSTNAME: petclinic-client-host
-      ELASTIC_APM_CLIENT_SERVICE_NAME: petclinic-client
-      API_SERVER: 'http://spring-petclinic-server:${SERVER_PORT:-8000}'
-      SERVER_PORT: ${CLIENT_SERVER_PORT:-3000}
-      NODE_ENV: production
-      ELASTICSEARCH_USERNAME: elastic
-      ELASTICSEARCH_URL: http://elasticsearch:9200
-      ELASTICSEARCH_PASSWORD: ${ELASTIC_PASSWORD:-changeme}
-      PETCLINIC_INTERNAL_URL: "http://spring-petclinic-client:${CLIENT_SERVER_PORT:-3000}"
-      PETCLINIC_EXTERNAL_URL: "http://localhost:${CLIENT_SERVER_PORT:-3000}"
-      ADDRESS_SERVER: "http://spring-address-finder:5000"
+#    environment:
+#      ELASTIC_APM_SERVER_URL: http://apm-server:${APM_SERVER_PORT:-8200}
+#      ELASTIC_APM_API_URL: http://apm-server:${APM_API_PORT:-5601} `
+#      ELASTIC_APM_SERVER_JS_URL: http://localhost:${APM_SERVER_PORT:-8200}
+#      ELASTIC_APM_SERVICE_NAME: petclinic-client-nodejs-service
+#      ELASTIC_APM_HOSTNAME: petclinic-client-nodejs-host
+#      ELASTIC_APM_CLIENT_SERVICE_NAME: petclinic-client-rum-js-service
+#      ELASTIC_APM_SERVICE_VERSION: 1.0.0
+#      API_SERVER: 'http://spring-petclinic-server:${SERVER_PORT:-8000}'
+#      API_SERVER_URL: 'http://spring-petclinic-server:${SERVER_PORT:-8000}'
+#      API_PREFIX: /petclinic/api
+#      SERVER_PORT: ${CLIENT_SERVER_PORT:-3000}
+#      NODE_ENV: production
+#      ELASTICSEARCH_USERNAME: elastic
+#      ELASTICSEARCH_URL: http://elasticsearch:9200
+#      ELASTICSEARCH_PASSWORD: ${ELASTIC_PASSWORD:-changeme}
+#      PETCLINIC_INTERNAL_URL: "http://spring-petclinic-client:${CLIENT_SERVER_PORT:-3000}"
+#      PETCLINIC_EXTERNAL_URL: "http://localhost:${CLIENT_SERVER_PORT:-3000}"
+#      ADDRESS_SERVER: "http://spring-address-finder:5000"
     depends_on:
       - spring-petclinic-server
       - spring-address-finder
@@ -320,7 +312,7 @@ services:
       ELASTIC_APM_HOSTNAME: petclinic-servload-host
     depends_on:
       - spring-petclinic-client
-    restart: on-failure
+#    restart: on-failure
 
 networks:
   spring-petclinic-net:

@@ -2,23 +2,42 @@ import { IHttpMethod } from '../types/index';
 export const url = (path: string): string => `/${path}`;
 import { APMService } from '../main';
 
-// as fetch isn't instrumenented yet by elastic APM
+// as fetch isn't instrumented yet by elastic APM
 export const xhr_request = (path: string, onSuccess: (status: number, response: any) => any) => {
   const requestUrl = url(path);
   const xhr = new XMLHttpRequest();
   xhr.open('GET', requestUrl, true);
-  xhr.onload = function(e) {
-    if (xhr.status < 400) {
-        onSuccess(xhr.status, JSON.parse(xhr.responseText));
-    } else {
-      APMService.getInstance().captureError(`Failed GET on ${requestUrl} - ${xhr.status} ${xhr.statusText}`);
-      onSuccess(xhr.status, {});
+
+  xhr.responseType = 'json';
+  xhr.setRequestHeader('Accept', 'application/json;charset=UTF-8');
+
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+
+    const status = xhr.status;
+    const data = xhr.response; // já vem objeto/array ou null
+
+    if (status >= 400) {
+      APMService.getInstance().captureError(`Failed GET on ${requestUrl} - ${status} ${xhr.statusText}`);
     }
+
+    onSuccess(status, data);
   };
-  xhr.onerror = function(e) {
-     APMService.getInstance().captureError(`Failed GET on ${requestUrl} - ${xhr.status} ${xhr.statusText}`);
-     onSuccess(xhr.status, {});
+
+  xhr.onload = finish;
+
+  xhr.onerror = () => {
+    if (done) return;
+    done = true;
+    APMService.getInstance().captureError(`Failed GET on ${requestUrl} - ${xhr.status} ${xhr.statusText}`);
+    onSuccess(0, null);
   };
+
+  xhr.onabort = xhr.onerror;
+  xhr.ontimeout = xhr.onerror;
+
   xhr.send(null);
 };
 

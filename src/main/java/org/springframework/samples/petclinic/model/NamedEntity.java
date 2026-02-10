@@ -17,7 +17,6 @@ package org.springframework.samples.petclinic.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;
-
 import jakarta.validation.constraints.NotBlank;
 
 
