@@ -4,7 +4,7 @@
       "must": [
         {
           "term": {
-            "state.keyword": {
+            "state": {
               "value": "{{state}}"
             }
           }
@@ -15,7 +15,7 @@
   "aggs": {
     "city": {
       "terms": {
-        "field": "city.keyword",
+        "field": "city",
         "size": 50
       }
     }

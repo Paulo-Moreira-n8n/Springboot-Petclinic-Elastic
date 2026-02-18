@@ -1,0 +1,87 @@
+# Para construir o pacote da aplicação
+# docker build -t spring-build-client -f Dockerfile.dsv .
+
+# Para gerar o pacote da aplicação
+# docker run --rm --name spring-build-client spring-build-client
+
+# Para copiar o pacote final da aplicação
+# docker cp spring-build-client:/usr/src/petclinic-frontend/spring-petclinic-client.tar.gz .
+
+
+# -------------------------------------------------------
+# STAGE 1 — Build do client (React 19 + Vite 7)
+# -------------------------------------------------------
+FROM node AS client-build
+
+WORKDIR /usr/src/petclinic-frontend/client
+
+# Copiar primeiro os arquivos de manifesto, package.json e package-lock.json se existir, para cache de dependências.
+COPY client/package*.json ./
+
+# Verifica a existência de package-lock.json e, caso exista, instala com CI, caso contrario instala com install
+RUN if [ -f package-lock.json ]; then \
+      npm ci --legacy-peer-deps; \
+    else \
+      npm install --legacy-peer-deps; \
+    fi
+
+# Copiar código-fonte do client
+COPY client/ .
+
+# Build de produção (Vite gera /dist com /assets/*.js e *.js.map)
+RUN npm run build
+
+
+# -------------------------------------------------------
+# STAGE 2 — Runtime do server (Express backend serving /public)
+# -------------------------------------------------------
+FROM node AS server-runtime
+
+ENV NODE_ENV=production
+WORKDIR /usr/src/petclinic-frontend/server
+
+# Copiar primeiro os arquivos de manifesto, package.json e package-lock.json se existir, para cache de dependências.
+COPY server/package*.json ./
+
+# Verifica a existência de package-lock.json e, caso exista, instala com CI, caso contrario instala com install
+RUN if [ -f package-lock.json ]; then \
+      npm ci --omit=dev; \
+    else \
+      npm install --omit=dev; \
+    fi
+
+# Copiar código do server
+COPY server/ .
+
+# Copiar build do client para a pasta pública do server, Vite gera index.html e assets com hash; public/ serve o SPA
+COPY --from=client-build /usr/src/petclinic-frontend/client/dist/index.html ./public/index.html
+COPY --from=client-build /usr/src/petclinic-frontend/client/dist/assets ./public/assets
+
+
+# -------------------------------------------------------
+# STAGE 3 — Loader de sourcemaps (requer curl) + entrypoint
+# -------------------------------------------------------
+
+# Copiar todos os mapas gerados pelo Vite (ficam em /dist/assets/*.map)
+COPY --from=client-build /usr/src/petclinic-frontend/client/dist/assets/*.map ./source_maps
+
+# RUN chmod +x entrypoint.sh
+
+# Empacota a aplicação frontend
+WORKDIR /usr/src/petclinic-frontend
+RUN tar -czf spring-petclinic-client.tar.gz server/.
+
+WORKDIR /usr/src/petclinic-frontend/server
+
+# Porta do server Node (seu bin/www usa 3000 fora do padrão que é 4000)
+EXPOSE 3000
+
+# CMD ["npm", "start"]
+# ENTRYPOINT ["/bin/bash", "/etc/entrypoint.sh"]
+
+# Comando padrão (npm start no server)
+# ENTRYPOINT ["/bin/bash", "-lc", "/etc/entrypoint.sh && exec npm start"]
+
+# bash -lc /etc/entrypoint.sh && exec npm start
+
+CMD ["node", "-e", "console.log(`[${new Date().toISOString()}] Faça a cópia agora...`); setInterval(() => console.log(`[${new Date().toISOString()}] Container ainda ativo...`), 6000);"]

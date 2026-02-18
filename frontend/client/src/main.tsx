@@ -37,8 +37,6 @@ export class APMService {
         serviceName: config.apm_client_service_name,
         serverUrl: config.apm_server_js,
         serviceVersion: config.apm_service_version,
-        transactionThrottleLimit: 1000,
-        errorThrottleLimit: 1000,
 		logLevel: 'debug', // >>> DEBUG
         distributedTracingOrigins: (config.distributedTracingOrigins || '').split(',')
       });

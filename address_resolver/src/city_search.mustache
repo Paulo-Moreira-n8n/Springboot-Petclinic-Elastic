@@ -8,13 +8,6 @@
               "value": "{{zip_code}}"
             }
           }
-        },
-        {
-          "term": {
-            "state.keyword": {
-              "value": "{{state}}"
-            }
-          }
         }
       ]
     }
@@ -22,10 +15,10 @@
   "aggs": {
     "city": {
       "terms": {
-        "field": "city.keyword",
+        "field": "city",
         "size": 20
       }
     }
   },
-  "size":0
+  "size": 0
 }

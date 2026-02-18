@@ -37,10 +37,11 @@ def find_city():
     if request.method == 'POST':
         if request.headers['Content-Type'] == 'application/json':
             req_data = request.get_json()
-            missing = check_parameters(req_data, ["zip_code","state"])
+            # Agora pesquisamos apenas por zip_code
+            missing = check_parameters(req_data, ["zip_code"])
             if len(missing) > 0:
                 return jsonify({"success": False, "message": missing}), 404
-            response = CitySearch(zip_code=req_data['zip_code'], state=req_data['state']).query()
+            response = CitySearch(zip_code=req_data['zip_code']).query()
             response['success'] = True
             return jsonify(response), 200
 

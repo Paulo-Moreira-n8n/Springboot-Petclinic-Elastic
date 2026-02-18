@@ -1,25 +1,33 @@
+// processes.config.js
+
 module.exports = {
   apps: [
     {
-      name: "chrome",
-      script: "/usr/bin/google-chrome-stable",
-      args: [
-        "--remote-debugging-address=0.0.0.0",
-        "--remote-debugging-port=9222",
-        "--headless=new",
-        "--disable-gpu",
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage"
-      ].join(" "),
-      exec_interpreter: "none",
-      exec_mode: "fork",
-      restart_delay: 2000
+      name: 'base_worker',
+      script: './tasks.js',
+      args: ["users.csv", "20000:10000", "1000:1000"],
+      instances: 1,
+      env: {
+        PETCLINIC_BASE_URL: process.env.PETCLINIC_BASE_URL || 'http://spring-petclinic-client:3000'
+      }
     },
     {
-      name: "worker",
-      script: "./tasks.js",
-      instances: 1
+      name: 'edit_owner_worker',
+      script: './edit_owner.js',
+      instances: 1,
+      env: {
+        PETCLINIC_BASE_URL: process.env.PETCLINIC_BASE_URL || 'http://spring-petclinic-client:3000'
+      }
+    },
+    {
+      name: 'windows_worker',
+      script: './tasks.js',
+      args: ["windows_users.csv", "120000:20000", "10000:10000"],
+      instances: 1,
+      env: {
+        PETCLINIC_BASE_URL: process.env.PETCLINIC_BASE_URL || 'http://spring-petclinic-client:3000'
+      }
     }
+    // ⚠️ REMOVA o app "chrome" — ele é desnecessário!
   ]
-}
+};

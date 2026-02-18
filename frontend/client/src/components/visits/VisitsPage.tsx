@@ -1,7 +1,5 @@
-
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-
 import { IOwner, IVisit, IError } from '../../types/index';
 import { xhr_request, xhr_submitForm } from '../../util/index';
 import { NotEmpty } from '../form/Constraints';
@@ -65,7 +63,7 @@ const VisitsPage: React.FC = () => {
 
     APMService.getInstance().startTransaction('CreateVisit');
     const { owner, visit } = state;
-    const pet = owner.pets.find((p) => String(p.id) === String(pId));
+    const pet = owner.pets.find((p) => String(p.id) === String(petId));
 
     if (!pet) return;
 

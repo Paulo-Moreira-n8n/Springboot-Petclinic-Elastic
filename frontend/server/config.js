@@ -1,9 +1,9 @@
 const settings = {
   apm_server: process.env.ELASTIC_APM_SERVER_URL || 'http://apm-server:8200',
-  apm_server_js: process.env.ELASTIC_APM_SERVER_JS_URL || 'http://localhost:8200',
-  apm_service_name: process.env.ELASTIC_APM_SERVICE_NAME || 'petclinic-client-nodejs-service',
-  apm_hostname: process.env.ELASTIC_APM_HOSTNAME || 'petclinic-client-nodejs-host',
-  apm_client_service_name: process.env.ELASTIC_APM_CLIENT_SERVICE_NAME || 'petclinic-client-rum-js-service',
+  apm_server_js: process.env.ELASTIC_APM_SERVER_JS_URL || 'http://apm-server:8200',
+  apm_service_name: process.env.ELASTIC_APM_SERVICE_NAME || 'petclinic-node-js-service',
+  apm_hostname: process.env.ELASTIC_APM_HOSTNAME || 'petclinic-nodejs-host',
+  apm_client_service_name: process.env.ELASTIC_APM_CLIENT_SERVICE_NAME || 'petclinic-rum-js-service',
   apm_service_version: process.env.ELASTIC_APM_SERVICE_VERSION || '1.0.0',
   api_server: process.env.API_SERVER || 'http://spring-petclinic-server:8000',
   api_prefix: process.env.API_PREFIX || '/petclinic/api',

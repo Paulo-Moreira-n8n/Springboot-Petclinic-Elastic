@@ -35,3 +35,6 @@ WORKDIR	${JMETER_HOME}
 ENTRYPOINT ["/bin/bash", "/entrypoint.sh"]
 
 # /bin/bash /entrypoint.sh
+
+# Empacota loadgen com Apache Jmeter
+# tar -czf spring-node-js-loadgen.tar.gz opt/.

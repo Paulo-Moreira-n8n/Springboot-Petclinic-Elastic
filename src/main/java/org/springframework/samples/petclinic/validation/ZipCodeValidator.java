@@ -15,8 +15,8 @@ public class ZipCodeValidator implements ConstraintValidator<ZipCodeConstraint,S
     private Pattern zipPattern;
     @Override
     public void initialize(ZipCodeConstraint constraintAnnotation) {
-        //a terrible zip code pattern, be gentle!
-        this.zipPattern = Pattern.compile("^([\\d]+){5}(?:-([\\d]+){4})?$");
+        // Aceita somente dígitos, com no mínimo 2
+        this.zipPattern = Pattern.compile("^\\d{2,}$");
     }
 
     @CaptureSpan(value = "validateZipCode")

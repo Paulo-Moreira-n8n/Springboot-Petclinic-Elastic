@@ -1,12 +1,10 @@
 {
   "aliases": {},
   "mappings": {
-    "doc": {
-      "properties": {
-        "zip_code": {
-          "type": "keyword"
-        }
-      }
+    "properties": {
+      "zip_code": { "type": "keyword" },
+      "state":    { "type": "keyword" },
+      "city":     { "type": "keyword" }
     }
   },
   "settings": {

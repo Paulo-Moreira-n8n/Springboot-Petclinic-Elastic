@@ -6,8 +6,8 @@ elasticsearch==6.3.1
 Flask>=1.0.2
 gunicorn==19.9.0
 itsdangerous==1.1.0
-Jinja2==2.10
-MarkupSafe>=1.0
+Jinja2==2.11.3
+MarkupSafe>=1.1.1
 pystache==0.5.4
 python-json-logger==0.1.9
 urllib3==1.24

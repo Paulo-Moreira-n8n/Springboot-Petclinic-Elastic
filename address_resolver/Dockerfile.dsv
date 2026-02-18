@@ -1,0 +1,125 @@
+# Recriação do índice + carga de dados
+
+Abra um Git Bash em C:\GIT\Springboot-Petclinic-Elastic\address_resolver
+
+# 1. Apague o índice atual
+# curl -u elastic:changeme -X DELETE 'http://localhost:9200/address'
+
+ 2. Crie o índice com o novo mapping:
+ curl -u elastic:changeme -H 'Content-Type: application/json' \
+   -X PUT 'http://localhost:9200/address' \
+   -d @src/mapping.json
+
+ 3. Recarregue o CSV:
+ python src/data_load.py \
+   --file address.csv \
+   --index address \
+   --es_host localhost:9200 \
+   --es_user elastic \
+   --es_password changeme
+
+# 4. Force refresh (o script já chama refresh, mas pode validar):
+# curl -u elastic:changeme -X POST 'http://localhost:9200/address/_refresh'
+
+# 5. Verifique o mapeamento dos campos
+# curl -u elastic:changeme 'http://localhost:9200/address/_mapping?pretty'
+
+# 6. Verifique se há docs com o ZIP 29127
+ curl -u elastic:changeme -H 'Content-Type: application/json' \
+   -X GET 'http://localhost:9200/address/_search?pretty' \
+   -d '{
+     "query": { "term": { "zip_code": { "value": "29127" } } }
+   }'
+
+# 6. Verifique se há docs com o ZIP 29127 pela api dos address_resolver
+curl -i -X POST http://localhost:5000/api/find_state \
+  -H 'Content-Type: application/json' \
+  -d '{ "zip_code": "29127" }'
+
+# 7. Verifique se há city com o ZIP 29127 pela api dos address_resolver
+curl -sS -X POST http://localhost:5000/api/find_city \
+  -H 'Content-Type: application/json' \
+  -d '{"zip_code":"29127"}'
+  
+  # 7. Verifique se há state com o ZIP 29127 pela api dos address_resolver
+curl -sS -X POST http://localhost:5000/api/find_state \
+  -H 'Content-Type: application/json' \
+  -d '{"zip_code":"29127"}'
+
+
+# Para construir a imagem final da aplicação
+# docker build -t spring-address-finder -f Dockerfile .
+
+# Para executar a imagem final da aplicação
+# docker run -p 5000:5000 --network petclinic-stack_spring-petclinic-net --name spring-address-finder spring-address-finder
+
+# Para entrar em um contêiner executando a imagem final da aplicação
+# docker run -it --rm -v $(pwd):/app -w /app spring-address-finder sh
+
+# docker run -p 5000:5000 --name spring-address-finder --network docker-elk_elk `
+#  -e ELASTIC_APM_SERVER_URL=http://apm-server:8200 `
+#  -e ELASTIC_APM_SERVICE_VERSION=1.0.0 `
+#  -e ELASTIC_APM_SERVICE_NAME=petclinic-address-finder `
+#  -e ELASTIC_APM_HOSTNAME=petclinic-address-host `
+#  -e ELASTIC_APM_CLIENT_SERVICE_NAME=petclinic-address-service `
+#  -e ELASTICSEARCH_USER=elastic `
+#  -e ELASTICSEARCH_PASSWORD=changeme `
+#  -e ELASTICSEARCH_URL=http://elasticsearch:9200 `
+#  spring-address-finder
+
+
+# http://localhost:5000
+
+# Para construir o pacote da aplicação
+# docker build -t spring-address-build -f Dockerfile.dsv .
+
+# Para gerar o pacote da aplicação
+# docker run -d --name spring-address-build spring-address-build
+
+# Para copiar o pacote final da aplicação
+# docker cp spring-address-build:/app/spring-address-finder.tar.gz .
+
+# Para entrar em um conteiner ambientado para a aplicação
+# docker run -it --rm -p 5000:5000 --name spring-address-finder -v "$(pwd):/app" -w /app python:3.6-stretch sh
+# --network petclinic-stack_spring-petclinic-net
+
+
+# ==== BUILD STAGE (recomendado para produção) ====
+
+FROM python:3.6-stretch
+
+ENV PYTHONHTTPSVERIFY=0 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    HOME=/root \
+    DEBIAN_FRONTEND=noninteractive
+
+WORKDIR /app/src
+
+COPY /src . 
+
+# RUN cp gunicorn.conf gunicorn.conf.py
+
+RUN pip install \
+    --trusted-host pypi.org \
+    --trusted-host pypi.python.org \
+    --trusted-host files.pythonhosted.org \
+    gunicorn json-logging-py
+
+RUN pip install \
+    --trusted-host pypi.org \
+    --trusted-host pypi.python.org \
+    --trusted-host files.pythonhosted.org \
+	--no-cache-dir -r requirements.txt
+
+EXPOSE 5000
+
+# Empacota a aplicação
+WORKDIR /app
+RUN tar -czf spring-address-finder.tar.gz src/.
+
+WORKDIR /app/src
+ENTRYPOINT ["/usr/local/bin/gunicorn", "--config", "gunicorn.conf", "--log-config", "logging.conf", "-b", ":5000", "server:app"]
+
+
+# /usr/local/bin/gunicorn --config gunicorn.conf.py --log-config logging.conf -b :5000 server:app

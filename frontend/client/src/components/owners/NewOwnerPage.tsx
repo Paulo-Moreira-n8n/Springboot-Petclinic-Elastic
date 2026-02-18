@@ -11,6 +11,8 @@ const newOwner = (): IOwner => ({
   lastName: '',
   address: '',
   city: '',
+  state: '',    // ✅ adicionado
+  zipCode: '',  // ✅ adicionado
   telephone: '',
   pets: []
 });

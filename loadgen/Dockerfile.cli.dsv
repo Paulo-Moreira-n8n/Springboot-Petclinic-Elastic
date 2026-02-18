@@ -1,0 +1,90 @@
+
+# Para construir a imagem final da aplicação
+# docker build -t spring-rum-js-loadgen -f Dockerfile .
+
+# Para executar a imagem final da aplicação
+# docker run -p 9222:9222 --network petclinic-stack_spring-petclinic-net --name spring-rum-js-loadgen spring-rum-js-loadgen
+
+# Para entrar em um contêiner executando a imagem final da aplicação
+# docker exec -it spring-rum-js-loadgen bash
+
+# Para executar um conteiner em linha de comando com a imagem final da aplicação
+# docker run -it --rm --shm-size=1g -v $(pwd):/home/chrome -w /home/chrome spring-rum-js-loadgen bash
+
+
+# Para construir o pacote da aplicação
+# docker build -t spring-rum-js-build -f Dockerfile.cli.dsv .
+
+# Para gerar o pacote da aplicação
+# docker run --rm --name spring-rum-js-build spring-rum-js-build
+
+# Para copiar o pacote final da aplicação
+# docker cp spring-rum-js-build:/home/spring-rum-js-loadgen.tar.gz .
+
+# Para custom_load: docker run -p 9222:9222 --shm-size=1g --name spring-rum-js-loadgen -e PETCLINIC_BASE_URL=http://spring-petclinic-client:3000/owners/list spring-rum-js-loadgen
+# Para single_slow_owner: docker run -it --rm --shm-size=1g -v $(pwd):/home/chrome --user chrome spring-rum-js-loadgen node single_slow_owner.js
+
+# Para entrar em um conteiner com node ambientado para o spring-rum-js-loadgen
+# docker run -it --rm -p 9222:9222 --network petclinic-stack_spring-petclinic-net --name spring-rum-js-loadgen -v "$(pwd):/home/chrome" -w /home/chrome node bash
+
+# ==== BUILD STAGE (recomendado para produção) ====
+FROM node AS base
+
+# Configurações de segurança e compatibilidade
+ENV NODE_TLS_REJECT_UNAUTHORIZED=0 \
+    PUPPETEER_SKIP_DOWNLOAD=true \
+    CHROME_PATH=/usr/bin/google-chrome-stable
+
+# Instala Chrome e dependências
+RUN apt-get update && apt-get install -y \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg \
+    --no-install-recommends \
+    && curl -sSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] https://dl.google.com/linux/chrome/deb/ stable main" \
+       > /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update \
+    && apt-get install -y google-chrome-stable --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+# ==== CRIA USUÁRIO NÃO ROOT ====
+RUN groupadd -r chrome && useradd -r -g chrome -G audio,video chrome \
+    && mkdir -p /home/chrome && chown -R chrome:chrome /home/chrome
+
+# ==== WORKDIR E DEPENDÊNCIAS ====
+WORKDIR /home/chrome
+
+# ==== COPIA ARQUIVOS DA APLICAÇÃO ====
+COPY --chown=chrome:chrome \
+     client/package.json \
+     client/edit_owner.js \
+     client/processes.config.js \
+	 client/puppeteer_interceptors.js \
+     client/single_slow_owner.js \
+     client/tasks.js \
+     client/users.csv \
+     client/windows_users.csv \
+     client/zip_codes.csv \
+     ./
+
+# Instala dependências como usuário não root
+RUN npm install --unsafe-perm --legacy-peer-deps
+
+# Empacota a aplicação frontend rum-js loadgen
+WORKDIR /home
+RUN tar -czf spring-rum-js-loadgen.tar.gz chrome/.
+
+# ==== PORTA (opcional) ====
+# Só exponha se for usar remote debugging (não recomendado para load testing)
+# EXPOSE 9222
+
+# ==== COMANDO PADRÃO: PM2 com os workers ==== - su chrome
+# WORKDIR /home/chrome
+# USER chrome
+# CMD ["node_modules/.bin/pm2-docker", "processes.config.js"]
+
+# node_modules/.bin/pm2-docker processes.config.js
+
+CMD ["node", "-e", "console.log(`[${new Date().toISOString()}] Container iniciado...`); setInterval(() => console.log(`[${new Date().toISOString()}] Container ainda ativo...`), 60000);"]

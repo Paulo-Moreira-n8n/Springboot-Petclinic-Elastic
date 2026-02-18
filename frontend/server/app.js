@@ -36,6 +36,22 @@ app.use(express.json());
 // Cookies
 app.use(cookieParser());
 
+
+/**
+ * >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+ * ORIGIN-AGENT-CLUSTER (opção 3)
+ * Middleware global para definir "Origin-Agent-Cluster: ?1" em TODAS as respostas
+ * >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+ */
+
+app.use((req, res, next) => {
+  // Define o header antes de qualquer resposta ser enviada
+  res.setHeader('Origin-Agent-Cluster', '?1');
+  next();
+});
+
+
+
 // Conteúdo estático
 app.use(express.static(path.join(__dirname, 'public')));
 
